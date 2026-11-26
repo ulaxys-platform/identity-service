@@ -1,0 +1,99 @@
+
+# =============================================================================
+# uLaxys PHP Service Template — Prettier Ignore
+# =============================================================================
+# PHP formatting is owned exclusively by Laravel Pint.
+# Prettier is responsible for Markdown, YAML, JSON, and supported config files.
+# Keep generated artifacts, dependency files, and test fixtures unchanged.
+# =============================================================================
+
+# PHP — Laravel Pint owns formatting
+**/*.php
+**/*.blade.php
+
+# Dependency directories and lockfiles
+**/vendor/
+**/node_modules/
+composer.json
+composer.lock
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+pnpm-lock.yaml
+
+# Generated service and integration artifacts
+.ulaxys/
+generated/
+**/generated/
+**/api-docs/
+**/swagger-ui/
+public/build/
+public/hot
+public/storage/
+
+# Runtime and framework state
+storage/
+bootstrap/cache/
+.cache/
+.npm/
+.yarn/
+.phpunit.cache/
+.phpunit.result.cache
+coverage/
+test-results/
+
+# Test fixtures — preserve exact contents
+tests/Fixtures/
+tests/fixtures/
+**/__snapshots__/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+**/auth.json
+**/.npmrc
+**/.netrc
+**/secrets/
+**/.secrets/
+
+# IDE, VCS and local tooling state
+.git/
+.idea/
+.vscode/
+.local/
+tmp/
+temp/
+
+# Build artifacts and binary files
+*.log
+*.tmp
+*.bak
+*.sqlite
+*.sqlite3
+*.pdf
+*.zip
+*.tar
+*.gz
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.ico
+*.woff
+*.woff2
+
+# Do not format tool-managed dependency metadata
+.phpunit-watcher.yml
+
+# =============================================================================
+# Intentionally formatted by Prettier:
+#
+# .github/workflows/*.yml
+# .prettierrc.json
+# README.md
+# docs/**/*.md
+# Other supported, non-generated JSON/YAML/Markdown files
+# =============================================================================

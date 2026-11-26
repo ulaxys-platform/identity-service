@@ -1,0 +1,59 @@
+{
+    "name": "ulaxys/identity-service",
+    "type": "project",
+    "description": "uLaxys Identity service",
+    "license": "MIT",
+    "require": {
+        "php": "^8.5",
+        "ext-curl": "*",
+        "ext-dom": "*",
+        "ext-mbstring": "*",
+        "ext-pdo": "*",
+        "ext-pdo_pgsql": "*",
+        "darkaonline/l5-swagger": "^11.2",
+        "laravel/framework": "^13.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.32",
+        "mockery/mockery": "^1.6",
+        "phpunit/phpunit": "^12.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/",
+            "Ulaxys\\Identity\\": "app/"
+        },
+        "exclude-from-classmap": [
+            "/tests/Support/MainGate/export-package.php",
+            "/tests/Support/MainGate/RecordingServiceProxy.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ulaxys\\Identity\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "test": "@php vendor/bin/phpunit",
+        "openapi": [
+            "@php artisan l5-swagger:generate",
+            "@php .docker/verify-openapi.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "platform": {
+            "php": "8.5.0"
+        },
+        "allow-plugins": {}
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

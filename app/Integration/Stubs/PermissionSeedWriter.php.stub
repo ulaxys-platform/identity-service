@@ -1,0 +1,95 @@
+<?php
+
+namespace Database\Seeders\Support;
+
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use RuntimeException;
+
+/** Shared API v1. Description-only updates; no roles, grants, flags or IDs. */
+final class PermissionSeedWriter
+{
+    public static function seed(string $catalog): void
+    {
+        // Catalogs are trusted, manually installed PHP; never use request-supplied paths.
+        if (! is_file($catalog) || ! is_readable($catalog)) {
+            throw new InvalidArgumentException('Permission catalog is missing or unreadable.');
+        }
+        $entries = require $catalog;
+        $validated = self::validate($entries);
+        if ($validated === []) {
+            return;
+        }
+        DB::transaction(function () use ($validated): void {
+            // Middleware names omit module and concatenate action/subject. Inspect
+            // all existing keys to detect collisions even across different subjects.
+            $existing = DB::table('permissions')->lockForUpdate()->get(['module', 'subject', 'action', 'description']);
+            $byKey = [];
+            foreach ($existing as $row) {
+                $name = $row->action.'-'.$row->subject;
+                if (! isset($validated[$name])) {
+                    continue;
+                }
+                $wanted = $validated[$name];
+                if ($row->module !== $wanted['module'] || $row->subject !== $wanted['subject'] || $row->action !== $wanted['action'] || isset($byKey[$name])) {
+                    throw new RuntimeException('Ambiguous existing permission identity: '.$name.'. Review existing records; no grants were migrated.');
+                }
+                $byKey[$name] = $row;
+            }
+            foreach ($validated as $name => $data) {
+                $identity = array_intersect_key($data, array_flip(['module', 'subject', 'action']));
+                $description = json_encode($data['description'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+                if (! isset($byKey[$name])) {
+                    DB::table('permissions')->insert([...$identity, 'description' => $description]);
+                } elseif (json_decode($byKey[$name]->description ?? '', true) != $data['description']) {
+                    DB::table('permissions')->where($identity)->update(['description' => $description]);
+                }
+            }
+        });
+    }
+
+    /** Validate the entire catalog before opening a transaction or making any DB query. */
+    public static function validate(mixed $entries): array
+    {
+        if (! is_array($entries) || ! array_is_list($entries)) {
+            throw new InvalidArgumentException('Permission catalog must be a list of data entries.');
+        }
+        $result = [];
+        foreach ($entries as $entry) {
+            if (! is_array($entry) || array_keys($entry) !== ['data'] || ! is_array($entry['data'])) {
+                throw new InvalidArgumentException('Each permission entry must contain only a data object.');
+            }
+            $data = $entry['data'];
+            $keys = array_keys($data);
+            sort($keys);
+            if ($keys !== ['action', 'description', 'module', 'subject']) {
+                throw new InvalidArgumentException('Only module, subject, action and description are supported. Optional role/model/active fields require separate compatibility review.');
+            }
+            foreach (['module', 'subject', 'action'] as $field) {
+                if (! is_string($data[$field]) || ! preg_match('/^[A-Za-z][A-Za-z0-9-]{0,79}$/D', $data[$field])) {
+                    throw new InvalidArgumentException('Invalid native permission '.$field.' identifier.');
+                }
+            }
+            $description = $data['description'];
+            if (! is_array($description) || count($description) !== 3 || array_diff(['tr', 'en', 'ar'], array_keys($description))) {
+                throw new InvalidArgumentException('Explicit translated permission descriptions tr, en and ar are required; localization keys are not translations.');
+            }
+            foreach (['tr', 'en', 'ar'] as $language) {
+                $text = $description[$language];
+                if (! is_string($text) || trim($text) === '' || strlen($text) > 500 || ! mb_check_encoding($text, 'UTF-8')
+                    || preg_match('/[\x00-\x1f\x7f]/', $text) || preg_match('/^[A-Za-z_][A-Za-z0-9_-]*(?:[.\/][A-Za-z0-9_-]+)+$/D', $text)) {
+                    throw new InvalidArgumentException('Invalid translated permission description: '.$language);
+                }
+            }
+            $data['description'] = array_replace(array_fill_keys(['tr', 'en', 'ar'], ''), $description);
+            $name = $data['action'].'-'.$data['subject'];
+            if (isset($result[$name])) {
+                throw new InvalidArgumentException('Duplicate identity or canonical middleware-name collision: '.$name);
+            }
+            $result[$name] = $data;
+        }
+        ksort($result, SORT_STRING);
+
+        return $result;
+    }
+}

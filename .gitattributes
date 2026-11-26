@@ -1,0 +1,30 @@
+* text=auto
+
+# Line endings
+*.php text eol=lf
+# Generator templates are byte-sensitive and must not change on Windows checkout
+*.stub text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.jsonc text eol=lf
+*.toml text eol=lf
+
+# Windows scripts
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Diff drivers
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+# Archive exclusions
+/.github export-ignore
+CHANGELOG.md export-ignore
