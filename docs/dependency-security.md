@@ -28,7 +28,7 @@ Other `symfony/*` components in the lock (console 8.1.11, error-handler 8.1.10, 
 The implementation sandbox has no PHP or Composer runtime (see docs/acceptance.md), so `composer.lock` cannot be regenerated honestly here. Hand-editing a lockfile would corrupt its integrity hash and is rejected. Maintainers must run, on a machine with PHP 8.5 + Composer 2:
 
 ```sh
-composer update symfony/http-kernel symfony/mailer symfony/routing --with-dependencies
+composer update symfony/http-kernel symfony/http-foundation symfony/mailer symfony/routing --with-all-dependencies
 composer validate --strict
 composer audit
 php vendor/bin/phpunit --testsuite Foundation
@@ -40,4 +40,4 @@ Then commit the refreshed `composer.lock`. `composer.json` already permits the p
 
 ## Dependency policy for Identity V2 (I1)
 
-Unit I1 adds **no new Composer dependencies**. The token core uses PHP core `ext-openssl`, `password_hash` and `random_bytes` only, keeping the frozen install and this audit surface unchanged (ADR-0001). Planned I2 dependencies (Laravel Passport, WebAuthn and TOTP libraries) must each go through: lock refresh, `composer audit`, platform requirement check and the regression suite before merge.
+The original candidate added no Composer dependencies. This is not an accepted engine policy: maintained authentication dependencies are required if selected by I0. See `docs/review-remediation.md`. The token core uses PHP core `ext-openssl`, `password_hash` and `random_bytes` only, keeping the frozen install and this audit surface unchanged (ADR-0001). Planned I2 dependencies (Laravel Passport, WebAuthn and TOTP libraries) must each go through: lock refresh, `composer audit`, platform requirement check and the regression suite before merge.

@@ -10,5 +10,10 @@ interface PlatformAdministratorRepositoryInterface
 {
     public function findActiveByUserId(string $userId): ?PlatformAdministrator;
 
+    /** Acquire the exclusive bootstrap writer lock inside a PostgreSQL transaction. */
+    public function lockBootstrap(): void;
+
+    public function hasAnyGrant(): bool;
+
     public function create(array $attributes): PlatformAdministrator;
 }

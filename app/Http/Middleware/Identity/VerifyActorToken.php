@@ -39,8 +39,8 @@ final class VerifyActorToken
             $claims = $this->codec->decode($token, $this->signingKeys->verificationKeys(), (string) config('identity.token.audience'));
         } catch (TokenException $exception) {
             if ($exception->reason === TokenException::KEYS_UNAVAILABLE) {
-                return (new HttpErrorResponseObjectOfResult)
-                    ->setStatus(503)->setCode(503)->setMessage('Authentication dependency unavailable.');
+                return response()->json((new HttpErrorResponseObjectOfResult)
+                    ->setStatus(503)->setCode(503)->setMessage('Authentication dependency unavailable.')->toArray(), 503);
             }
 
             return $this->unauthorized();

@@ -33,22 +33,26 @@ final class BootstrapAdministratorService
     /** @return array{created: bool, user_id: string, token: ?string, expires_at: \Illuminate\Support\Carbon|null} */
     public function bootstrap(string $identifier, string $displayName, int $ttlMinutes): array
     {
-        $kind = LoginIdentifier::kindFor($identifier);
-        $normalized = LoginIdentifier::normalize($identifier);
-        $existingIdentifier = $this->identifiers->findByKindAndNormalized($kind, $normalized);
-        if ($existingIdentifier !== null) {
-            $existingGrant = $this->administrators->findActiveByUserId((string) $existingIdentifier->user_id);
-            if ($existingGrant !== null) {
-                // Idempotent re-run: report, change nothing, audit once.
-                $this->audit->audit('identity.bootstrap.admin_bootstrap_idempotent', null, 'operator', 'user', (string) $existingIdentifier->user_id, 'success');
+        return DB::transaction(function () use ($identifier, $displayName, $ttlMinutes): array {
+            $this->administrators->lockBootstrap();
+            $kind = LoginIdentifier::kindFor($identifier);
+            $normalized = LoginIdentifier::normalize($identifier);
+            $existingIdentifier = $this->identifiers->findByKindAndNormalized($kind, $normalized);
+            if ($existingIdentifier !== null) {
+                $existingGrant = $this->administrators->findActiveByUserId((string) $existingIdentifier->user_id);
+                if ($existingGrant !== null) {
+                    // Idempotent re-run: report, change nothing, audit once.
+                    $this->audit->audit('identity.bootstrap.admin_bootstrap_idempotent', null, 'operator', 'user', (string) $existingIdentifier->user_id, 'success');
 
-                return ['created' => false, 'user_id' => (string) $existingIdentifier->user_id, 'token' => null, 'expires_at' => null];
+                    return ['created' => false, 'user_id' => (string) $existingIdentifier->user_id, 'token' => null, 'expires_at' => null];
+                }
+                throw new RuntimeException('This login identifier already belongs to a user without a platform administrator grant; bootstrap cannot silently escalate it.');
             }
-            throw new RuntimeException('This login identifier already belongs to a user without a platform administrator grant; bootstrap cannot silently escalate it.');
-        }
-        $token = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
-        $expiresAt = now()->addMinutes(max(15, $ttlMinutes));
-        $user = DB::transaction(function () use ($identifier, $kind, $normalized, $displayName, $token, $expiresAt): User {
+            if ($this->administrators->hasAnyGrant()) {
+                throw new RuntimeException('Initial platform administrator already bootstrapped; use the approved administrator lifecycle.');
+            }
+            $token = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+            $expiresAt = now()->addMinutes(max(15, $ttlMinutes));
             $user = $this->users->createWithProfile(
                 ['status' => User::STATUS_INVITED, 'type' => User::TYPE_HUMAN, 'created_by' => null],
                 ['display_name' => $displayName, 'preferred_language' => 'en', 'preferred_timezone' => 'UTC'],
@@ -69,9 +73,7 @@ final class BootstrapAdministratorService
             $this->audit->audit('identity.bootstrap.admin_created', null, 'operator', 'user', (string) $user->id, 'success', ['purpose' => 'account_setup']);
             $this->audit->security('auth.bootstrap.admin_created', (string) $user->id, null, 'success', []);
 
-            return $user;
+            return ['created' => true, 'user_id' => (string) $user->id, 'token' => $token, 'expires_at' => $expiresAt];
         });
-
-        return ['created' => true, 'user_id' => (string) $user->id, 'token' => $token, 'expires_at' => $expiresAt];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ulaxys\Identity\Services\Identity\Tokens;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 use Ulaxys\Identity\Repositories\RepositoryInterface\SigningKeyRepositoryInterface;
@@ -50,6 +51,16 @@ final class SigningKeyService
     /** @return array{kid: string, private_path: string, public_path: string} */
     public function generate(bool $rotate): array
     {
+        return DB::transaction(function () use ($rotate): array {
+            DB::statement('LOCK TABLE identity_signing_keys IN SHARE ROW EXCLUSIVE MODE');
+
+            return $this->generateLocked($rotate);
+        });
+    }
+
+    /** @return array{kid: string, private_path: string, public_path: string} */
+    private function generateLocked(bool $rotate): array
+    {
         if (! $rotate && $this->repository->active() !== null) {
             throw new RuntimeException('An active signing key already exists; use --rotate to publish a new key with overlap.');
         }
@@ -63,7 +74,9 @@ final class SigningKeyService
         if ($keyResource === false) {
             throw new RuntimeException('openssl_pkey_new failed; ensure the openssl extension and OPENSSL_CONF are available.');
         }
-        openssl_pkey_export($keyResource, $privatePem, null, $config);
+        if (! openssl_pkey_export($keyResource, $privatePem, null, $config)) {
+            throw new RuntimeException('Signing key export failed.');
+        }
         $details = openssl_pkey_get_details($keyResource);
         if (! is_array($details) || ! isset($details['key'])) {
             throw new RuntimeException('Generated key details are unreadable.');
@@ -72,10 +85,10 @@ final class SigningKeyService
         $kid = Jwk::thumbprint($publicPem);
         $privatePath = $storagePath.'/identity-'.$kid.'.private.pem';
         $publicPath = $storagePath.'/identity-'.$kid.'.public.pem';
-        File::put($privatePath, $privatePem);
-        File::put($publicPath, $publicPem);
-        chmod($privatePath, 0600);
-        chmod($publicPath, 0644);
+        // Exclusive creation and restrictive umask prevent accidental overwrite
+        // and a window where private key material is readable by other users.
+        $this->writeNewKeyFile($privatePath, $privatePem, 0600);
+        $this->writeNewKeyFile($publicPath, $publicPem, 0644);
         $this->repository->create([
             'kid' => $kid,
             'algorithm' => 'RS256',
@@ -87,6 +100,26 @@ final class SigningKeyService
         $this->repository->retireOthers($kid);
 
         return ['kid' => $kid, 'private_path' => $privatePath, 'public_path' => $publicPath];
+    }
+
+    private function writeNewKeyFile(string $path, string $contents, int $mode): void
+    {
+        $previousUmask = umask(0077);
+        try {
+            $handle = fopen($path, 'xb');
+        } finally {
+            umask($previousUmask);
+        }
+        if ($handle === false) {
+            throw new RuntimeException('Cannot exclusively create signing key file.');
+        }
+        try {
+            if (fwrite($handle, $contents) !== strlen($contents) || ! fflush($handle) || ! fsync($handle) || ! chmod($path, $mode)) {
+                throw new RuntimeException('Cannot durably write signing key file with required permissions.');
+            }
+        } finally {
+            fclose($handle);
+        }
     }
 
     private function readFile(string $path): string

@@ -91,4 +91,22 @@ final class IdentityTokenLifecycleTest extends TestCase
         $this->withHeaders($this->bearer($oldAccess))->getJson('/api/v1/profile/me')->assertStatus(401);
         $this->loginJson('rotate-keys@ulaxys.test', 'Test-Passphrase-123')->assertOk();
     }
+
+    public function test_introspection_denies_wrong_audience_and_ineligible_user(): void
+    {
+        $user = $this->createIdentityUser('introspection-deny@ulaxys.test', 'Test-Passphrase-123');
+        $login = $this->loginJson('introspection-deny@ulaxys.test', 'Test-Passphrase-123')->assertOk();
+        $access = (string) $login->json('tokens.accessToken');
+        $key = $this->identityKeys->signingKey();
+        $codec = new JwtCodec((string) config('identity.issuer'));
+        $claims = $codec->decode($access, [$key['kid'] => $key['public_key_pem']], (string) config('identity.token.audience'));
+        $wrongAudience = $codec->encode(array_replace($claims, ['aud' => 'other-platform']), $key['private_key_pem'], $key['kid']);
+        $this->withHeader('Signature', $this->signature())
+            ->postJson('/api/v1/oauth/introspect', ['token' => $wrongAudience])
+            ->assertOk()->assertJsonPath('items.active', false);
+        $user->update(['status' => \Ulaxys\Identity\Models\User::STATUS_SUSPENDED]);
+        $this->withHeader('Signature', $this->signature())
+            ->postJson('/api/v1/oauth/introspect', ['token' => $access])
+            ->assertOk()->assertJsonPath('items.active', false);
+    }
 }

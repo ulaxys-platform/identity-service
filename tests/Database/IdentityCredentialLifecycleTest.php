@@ -153,4 +153,27 @@ final class IdentityCredentialLifecycleTest extends TestCase
             ->postJson('/api/v1/credentials/email-verification/confirm', ['token' => $token])
             ->assertStatus(400);
     }
+
+    public function test_second_distinct_bootstrap_identifier_is_rejected(): void
+    {
+        $service = $this->app->make(BootstrapAdministratorService::class);
+        $service->bootstrap('first-admin@ulaxys.test', 'First Admin', 1440);
+        $this->expectException(\RuntimeException::class);
+        $service->bootstrap('second-admin@ulaxys.test', 'Second Admin', 1440);
+    }
+
+    public function test_credential_repository_consumption_requires_a_fresh_unexpired_row(): void
+    {
+        $user = $this->createIdentityUser('consume@ulaxys.test', 'Test-Passphrase-123');
+        $repo = $this->app->make(\Ulaxys\Identity\Repositories\RepositoryInterface\CredentialChallengeRepositoryInterface::class);
+        $token = $this->createChallenge((string) $user->id, 'password_reset');
+        $record = $repo->findByTokenHash(hash('sha256', $token));
+        $this->assertNotNull($record);
+        $this->assertTrue($repo->consume((string) $record->id));
+        $this->assertFalse($repo->consume((string) $record->id));
+        $expired = $this->createChallenge((string) $user->id, 'password_reset', now()->subMinute());
+        $expiredRecord = $repo->findByTokenHash(hash('sha256', $expired));
+        $this->assertNotNull($expiredRecord);
+        $this->assertFalse($repo->consume((string) $expiredRecord->id));
+    }
 }

@@ -13,9 +13,9 @@ Status: MERGE BLOCKED. Reviewed candidate 3ce0fe0d0515d135a3f975bf1d84098bb47880
 - IDV2-002: engine choice reopened; implementation replacement pending runtime evaluation.
 - IDV2-003: targeted Composer lock update and clean audit pending actual Composer runtime. Never suppress advisories.
 - IDV2-004: candidate patch uses checked conditional token consumption within the same transaction as credential/verification side effects. Concurrent PostgreSQL tests required; additionally review multiple distinct recovery challenges and lifecycle changes.
-- IDV2-005: global initial administrator policy and concurrent bootstrap protection pending.
-- IDV2-006: atomic key publication, secure file creation, concurrent rotation and distributed key availability pending selected engine.
-- Additional: normalized identifier throttling and production rejection of plaintext delivery driver candidate patches. Verify IP/account-wide limits, distributed cache and no secret logging.
+- IDV2-005: candidate patch serializes bootstrap in PostgreSQL and rejects a different initial administrator after any grant exists. Lifecycle/recovery and real concurrent acceptance remain open.
+- IDV2-006: candidate patch serializes key metadata publication in a transaction and exclusively writes key files with restrictive permissions before publishing metadata. Orphan file reconciliation, shared secret storage, overlap/TTL bounds, real rotation tests and final engine key lifecycle remain open.
+- Additional: introspection now checks audience, subject/session ownership and current user eligibility; revoke and unavailable-key response paths corrected. Regression tests added (not executed). Normalized identifier throttling and production rejection of plaintext delivery driver candidate patches. Verify IP/account-wide limits, distributed cache and no secret logging.
 
 ## Acceptance
 GitHub Actions usage quota reported exhausted by Product Owner. CI must remain enabled and unchanged; quota is not a test pass. Independently execute the following on the exact PR HEAD with disposable infrastructure:

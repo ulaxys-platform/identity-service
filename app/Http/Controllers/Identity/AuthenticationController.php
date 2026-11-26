@@ -60,6 +60,7 @@ final class AuthenticationController extends Controller
             new OA\Response(response: 401, description: 'Invalid, expired or replayed refresh token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
             new OA\Response(response: 403, description: 'Signature required', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
             new OA\Response(response: 429, description: 'Rate limited', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
+            new OA\Response(response: 503, description: 'Signing keys unavailable', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
         ],
     )]
     public function refresh(RefreshTokenRequest $request): JsonResponse

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Ulaxys\Identity\Http\Controllers\Identity;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 use Ulaxys\Identity\Http\Controllers\Controller;
 use Ulaxys\Identity\Http\Requests\Identity\IntrospectTokenRequest;
 use Ulaxys\Identity\Http\Requests\Identity\RevokeTokenRequest;
 use Ulaxys\Identity\Repositories\RepositoryInterface\AuthSessionRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\RefreshTokenRepositoryInterface;
+use Ulaxys\Identity\Repositories\RepositoryInterface\UserRepositoryInterface;
 use Ulaxys\Identity\Services\Identity\AuditLogger;
 use Ulaxys\Identity\Services\Identity\Tokens\Jwk;
 use Ulaxys\Identity\Services\Identity\Tokens\SigningKeyService;
@@ -36,6 +38,7 @@ final class OAuthContractController extends Controller
         private AuthSessionRepositoryInterface $sessions,
         private RefreshTokenRepositoryInterface $refreshTokens,
         private AuditLogger $audit,
+        private UserRepositoryInterface $users,
     ) {}
 
     #[OA\Get(
@@ -79,7 +82,7 @@ final class OAuthContractController extends Controller
     {
         $token = (string) $request->validated()['token'];
         try {
-            $claims = $this->codec->decode($token, $this->signingKeys->verificationKeys());
+            $claims = $this->codec->decode($token, $this->signingKeys->verificationKeys(), (string) config('identity.token.audience'));
         } catch (TokenException $exception) {
             if ($exception->reason === TokenException::KEYS_UNAVAILABLE) {
                 return response()->json(['status' => 503, 'code' => 503, 'message' => 'Authentication dependency unavailable.'], 503);
@@ -90,9 +93,12 @@ final class OAuthContractController extends Controller
         $sid = is_string($claims['sid'] ?? null) ? (string) $claims['sid'] : null;
         $sub = is_string($claims['sub'] ?? null) ? (string) $claims['sub'] : null;
         $session = $sid === null ? null : $this->sessions->findById($sid);
-        $active = $session !== null && $session->isUsable();
+        $user = $sub === null ? null : $this->users->findById($sub);
+        if ($session === null || $user === null || (string) $session->user_id !== $sub || ! $user->isLoginEligible() || ! $session->isUsable()) {
+            return $this->introspectionResult(false);
+        }
         $introspection = new TokenIntrospectionDto(
-            active: $active,
+            active: true,
             sub: $sub,
             sid: $sid,
             amr: is_array($claims['amr'] ?? null) ? $claims['amr'] : null,
@@ -125,22 +131,29 @@ final class OAuthContractController extends Controller
     {
         $token = (string) $request->validated()['token'];
         try {
-            $claims = $this->codec->decode($token, $this->signingKeys->verificationKeys());
+            $claims = $this->codec->decode($token, $this->signingKeys->verificationKeys(), (string) config('identity.token.audience'));
         } catch (TokenException $exception) {
             if ($exception->reason === TokenException::KEYS_UNAVAILABLE) {
                 return response()->json(['status' => 503, 'code' => 503, 'message' => 'Authentication dependency unavailable.'], 503);
             }
             // RFC 7009: unknown or invalid tokens still yield a 200 response.
-            return (new HttpSuccessResponseObject)->setStatus(200)->setMessage('Token revoked.');
+            return response()->json((new HttpSuccessResponseObject)->setStatus(200)->setMessage('Token revoked.')->toArray(), 200);
         }
         $sid = is_string($claims['sid'] ?? null) ? (string) $claims['sid'] : null;
-        if ($sid !== null) {
-            $this->sessions->revoke($sid, 'revoked_via_contract_endpoint');
-            $this->refreshTokens->revokeForSession($sid, 'revoked_via_contract_endpoint');
-            $this->audit->security('auth.session.revoked', is_string($claims['sub'] ?? null) ? (string) $claims['sub'] : null, $sid, 'success', ['reason' => 'gateway_revocation']);
+        $sub = is_string($claims['sub'] ?? null) ? (string) $claims['sub'] : null;
+        if ($sid !== null && $sub !== null) {
+            DB::transaction(function () use ($sid, $sub): void {
+                $session = $this->sessions->lockById($sid);
+                if ($session === null || (string) $session->user_id !== $sub) {
+                    return;
+                }
+                $this->sessions->revoke($sid, 'revoked_via_contract_endpoint');
+                $this->refreshTokens->revokeForSession($sid, 'revoked_via_contract_endpoint');
+                $this->audit->security('auth.session.revoked', $sub, $sid, 'success', ['reason' => 'gateway_revocation']);
+            });
         }
 
-        return (new HttpSuccessResponseObject)->setStatus(200)->setMessage('Token revoked.');
+        return response()->json((new HttpSuccessResponseObject)->setStatus(200)->setMessage('Token revoked.')->toArray(), 200);
     }
 
     private function introspectionResult(TokenIntrospectionDto|bool $result): JsonResponse
