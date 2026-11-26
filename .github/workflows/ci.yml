@@ -1,0 +1,157 @@
+# Reconstructed consumer CI workflow.
+#
+# The template's .github directory is excluded by `/.github export-ignore`
+# (see .gitattributes and docs/template-defects.md), so this workflow is a
+# faithful reconstruction of the checks documented in README.md and
+# docs/new-service.md, wired to the actual tooling found in the checkout:
+#   composer validate/audit, php -l, pint --test, PHPUnit Foundation,
+#   PHPUnit Database (disposable PostgreSQL), the OpenAPI release gate,
+#   strict generator dry-run, production image build and
+#   tests/Runtime/smoke-container.py (dual-stack + IPv4-only networks).
+# Treat the first successful run on the real repository as the VERIFIED gate.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, dom, mbstring, pdo, pdo_pgsql, openssl
+          coverage: none
+      - name: Validate Composer manifest
+        run: composer validate --strict
+      - name: Frozen Composer installation
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Composer security audit
+        run: composer audit
+      - name: Platform requirements
+        run: composer check-platform-reqs
+      - name: Generate throwaway runtime credentials
+        run: |
+          echo "APP_KEY=$(php artisan key:generate --show)" >> "$GITHUB_ENV"
+          echo "SERVICE_SIGNATURE=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: PHP syntax validation
+        run: |
+          set -e
+          find app bootstrap config routes database tests public scripts -name '*.php' -print0 | xargs -0 -n 1 php -l > /dev/null
+      - name: Pint (read-only)
+        run: php vendor/bin/pint --test
+      - name: Foundation PHPUnit
+        run: php vendor/bin/phpunit --testsuite Foundation
+      - name: OpenAPI generation and release gate
+        run: composer openapi
+      - name: Integration generator strict dry-run
+        run: php artisan ulaxys:generate-integration --all --strict --dry-run
+
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: service_test
+          POSTGRES_USER: service_test
+          POSTGRES_PASSWORD: service_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U service_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      APP_ENV: testing
+      CACHE_DRIVER: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      SERVICE_ALLOW_DESTRUCTIVE_TESTS: 'true'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: service_test
+      DB_USERNAME: service_test
+      DB_PASSWORD: service_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, dom, mbstring, pdo, pdo_pgsql, openssl
+          coverage: none
+      - name: Frozen Composer installation
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Generate throwaway runtime credentials
+        run: |
+          echo "APP_KEY=$(php artisan key:generate --show)" >> "$GITHUB_ENV"
+          echo "SERVICE_SIGNATURE=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Database PHPUnit (disposable PostgreSQL only)
+        run: php vendor/bin/phpunit --testsuite Database
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build --target production -t identity-service:ci .
+      - name: Provision disposable networks and PostgreSQL
+        run: |
+          docker network create identity-ci-dualstack
+          docker network create --subnet 172.28.0.0/24 identity-ci-ipv4
+          docker run -d --name identity-ci-pg --network identity-ci-dualstack \
+            -e POSTGRES_DB=service_runtime \
+            -e POSTGRES_USER=service_runtime \
+            -e POSTGRES_PASSWORD=service_runtime \
+            postgres:17-alpine
+          for i in $(seq 1 30); do
+            docker exec identity-ci-pg pg_isready -U service_runtime >/dev/null 2>&1 && break
+            sleep 1
+          done
+      - name: Generate throwaway runtime env (never printed, never published)
+        run: |
+          RUNTIME_ENV="$(mktemp)"
+          chmod 600 "$RUNTIME_ENV"
+          {
+            echo "APP_ENV=production"
+            echo "APP_KEY=base64:$(openssl rand -base64 32 | tr -d '\n')"
+            echo "APP_DEBUG=false"
+            echo "LOG_CHANNEL=stderr"
+            echo "SERVICE_SIGNATURE=$(openssl rand -hex 32)"
+            echo "CACHE_DRIVER=file"
+            echo "SESSION_DRIVER=array"
+            echo "QUEUE_CONNECTION=sync"
+            echo "DB_CONNECTION=pgsql"
+            echo "DB_HOST=identity-ci-pg"
+            echo "DB_PORT=5432"
+            echo "DB_DATABASE=service_runtime"
+            echo "DB_USERNAME=service_runtime"
+            echo "DB_PASSWORD=service_runtime"
+            echo "DB_SSLMODE=prefer"
+          } > "$RUNTIME_ENV"
+          echo "RUNTIME_ENV=$RUNTIME_ENV" >> "$GITHUB_ENV"
+      - name: Runtime smoke (dual-stack network)
+        run: python3 tests/Runtime/smoke-container.py identity-service:ci "$RUNTIME_ENV" identity-ci-dualstack "$GITHUB_WORKSPACE"
+      - name: Runtime smoke (IPv4-only network)
+        run: |
+          docker network connect --alias identity-ci-pg identity-ci-ipv4 identity-ci-pg
+          python3 tests/Runtime/smoke-container.py identity-service:ci "$RUNTIME_ENV" identity-ci-ipv4 "$GITHUB_WORKSPACE"
+      - name: Cleanup disposable resources
+        if: always()
+        run: |
+          docker rm -f identity-ci-pg || true
+          docker network rm identity-ci-dualstack identity-ci-ipv4 || true
