@@ -19,8 +19,8 @@ final class CredentialChallengeRepository implements CredentialChallengeReposito
         return CredentialChallenge::query()->where('token_hash', $tokenHash)->first();
     }
 
-    public function consume(string $id): void
+    public function consume(string $id): bool
     {
-        CredentialChallenge::query()->whereKey($id)->whereNull('consumed_at')->update(['consumed_at' => now()]);
+        return CredentialChallenge::query()->whereKey($id)->whereNull('consumed_at')->where('expires_at', '>', now())->update(['consumed_at' => now()]) === 1;
     }
 }

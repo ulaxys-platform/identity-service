@@ -54,9 +54,9 @@ final class LoginIdentifierRepository implements LoginIdentifierRepositoryInterf
         return $verification;
     }
 
-    public function consumeVerification(string $verificationId): void
+    public function consumeVerification(string $verificationId): bool
     {
-        IdentifierVerification::query()->whereKey($verificationId)->update(['consumed_at' => now()]);
+        return IdentifierVerification::query()->whereKey($verificationId)->whereNull('consumed_at')->where('expires_at', '>', now())->update(['consumed_at' => now()]) === 1;
     }
 
     public function markVerified(string $identifierId): void

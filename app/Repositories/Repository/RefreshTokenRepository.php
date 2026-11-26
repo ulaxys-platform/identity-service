@@ -19,9 +19,9 @@ final class RefreshTokenRepository implements RefreshTokenRepositoryInterface
         return RefreshToken::query()->where('token_hash', $tokenHash)->first();
     }
 
-    public function consume(string $id): void
+    public function consume(string $id): bool
     {
-        RefreshToken::query()->whereKey($id)->whereNull('consumed_at')->update(['consumed_at' => now()]);
+        return RefreshToken::query()->whereKey($id)->whereNull('consumed_at')->whereNull('revoked_at')->where('expires_at', '>', now())->update(['consumed_at' => now()]) === 1;
     }
 
     public function revokeFamily(string $familyId, string $reason): int

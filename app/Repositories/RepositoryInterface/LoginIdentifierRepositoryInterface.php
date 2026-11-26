@@ -21,7 +21,7 @@ interface LoginIdentifierRepositoryInterface
 
     public function findUsableVerification(string $tokenHash): ?IdentifierVerification;
 
-    public function consumeVerification(string $verificationId): void;
+    public function consumeVerification(string $verificationId): bool;
 
     public function markVerified(string $identifierId): void;
 }

@@ -1,6 +1,6 @@
 # Scoped RBAC and authorization engine
 
-Status: DEFERRED to I3. I1 ships only the interim platform-administrator gate (ADR-0004) and explicit permission *declarations* (not grants) in `config/integration.php`. Nothing in I1 grants permissions to users.
+Status: HISTORICAL PROPOSAL, NOT APPROVED for implementation in Identity. The PR remediation direction separates Access Management ownership; central ADR approval remains required. The schema below is reference material only. I1 ships only the interim platform-administrator gate (ADR-0004) and explicit permission *declarations* (not grants) in `config/integration.php`. Nothing in I1 grants permissions to users.
 
 ## Pre-drawn schema (must be preserved when implementing)
 

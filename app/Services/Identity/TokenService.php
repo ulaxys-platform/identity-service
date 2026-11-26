@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ulaxys\Identity\Services\Identity;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Ulaxys\Identity\Dto\Identity\TokenGrantDto;
 use Ulaxys\Identity\Models\AuthSession;
@@ -44,30 +45,51 @@ final class TokenService
     public function rotate(string $presentedRefreshToken): SessionGrant
     {
         $tokenHash = hash('sha256', $presentedRefreshToken);
-        $record = $this->refreshTokens->findByTokenHash($tokenHash);
-        if ($record === null) {
-            throw new TokenException(TokenException::INVALID_REFRESH, 'Refresh token is not recognized.');
-        }
-        if (! $record->isUsable()) {
-            // Replay of a consumed or revoked token: revoke the whole family
-            // and the owning session, then fail with a generic response.
-            $this->refreshTokens->revokeFamily((string) $record->family_id, 'refresh_reuse_detected');
-            $this->sessions->revoke((string) $record->session_id, 'refresh_reuse_detected');
-            throw new TokenException(TokenException::REUSE_DETECTED, 'Refresh token replay detected.');
-        }
-        $user = $this->users->findById((string) $record->user_id);
-        $session = $this->sessions->findById((string) $record->session_id);
-        if ($user === null || $session === null || ! $user->isLoginEligible() || ! $session->isUsable()) {
-            $this->refreshTokens->revokeFamily((string) $record->family_id, 'session_no_longer_usable');
-            throw new TokenException(TokenException::INVALID_REFRESH, 'Refresh token is no longer usable.');
-        }
-        $this->refreshTokens->consume((string) $record->id);
-        $signingKey = $this->signingKeys->signingKey();
-        $accessTtl = max(60, (int) config('identity.token.access_ttl_seconds', 600));
-        $refreshMinutes = max(5, (int) config('identity.token.refresh_ttl_minutes', 720));
-        $accessToken = $this->codec->encode($this->accessClaims($user, $session, $accessTtl), $signingKey['private_key_pem'], $signingKey['kid']);
+        // Serialize all rotations for this session. Session revocation also
+        // locks the session before updating its refresh tokens.
+        $result = DB::transaction(function () use ($tokenHash): SessionGrant|TokenException {
+            $initial = $this->refreshTokens->findByTokenHash($tokenHash);
+            if ($initial === null) {
+                return new TokenException(TokenException::INVALID_REFRESH, 'Refresh token is not recognized.');
+            }
+            $session = $this->sessions->lockById((string) $initial->session_id);
+            $record = $this->refreshTokens->findByTokenHash($tokenHash);
+            if ($record === null || $session === null) {
+                return new TokenException(TokenException::INVALID_REFRESH, 'Refresh token is no longer usable.');
+            }
+            if ($record->consumed_at !== null || $record->revoked_at !== null) {
+                $this->sessions->revoke((string) $record->session_id, 'refresh_reuse_detected');
+                $this->refreshTokens->revokeForSession((string) $record->session_id, 'refresh_reuse_detected');
 
-        return $this->grant($accessToken, $accessTtl, $user, $session, (string) $record->family_id, $refreshMinutes);
+                // Return rather than throw inside the transaction: the
+                // revocation must commit before returning a denial.
+                return new TokenException(TokenException::REUSE_DETECTED, 'Refresh token replay detected.');
+            }
+            $user = $this->users->findById((string) $record->user_id);
+            if (! $record->isUsable() || $user === null || ! $user->isLoginEligible() || ! $session->isUsable()) {
+                $this->refreshTokens->revokeFamily((string) $record->family_id, 'session_no_longer_usable');
+
+                return new TokenException(TokenException::INVALID_REFRESH, 'Refresh token is no longer usable.');
+            }
+            if (! $this->refreshTokens->consume((string) $record->id)) {
+                $this->sessions->revoke((string) $record->session_id, 'refresh_reuse_detected');
+                $this->refreshTokens->revokeForSession((string) $record->session_id, 'refresh_reuse_detected');
+
+                return new TokenException(TokenException::REUSE_DETECTED, 'Refresh token replay detected.');
+            }
+            // An exception during signing or grant insertion rolls back consumption.
+            $signingKey = $this->signingKeys->signingKey();
+            $accessTtl = max(60, (int) config('identity.token.access_ttl_seconds', 600));
+            $refreshMinutes = max(5, (int) config('identity.token.refresh_ttl_minutes', 720));
+            $accessToken = $this->codec->encode($this->accessClaims($user, $session, $accessTtl), $signingKey['private_key_pem'], $signingKey['kid']);
+
+            return $this->grant($accessToken, $accessTtl, $user, $session, (string) $record->family_id, $refreshMinutes);
+        });
+        if ($result instanceof TokenException) {
+            throw $result;
+        }
+
+        return $result;
     }
 
     /** @return array<string, mixed> */

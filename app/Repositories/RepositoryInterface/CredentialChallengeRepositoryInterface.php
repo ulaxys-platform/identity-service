@@ -12,5 +12,5 @@ interface CredentialChallengeRepositoryInterface
 
     public function findByTokenHash(string $tokenHash): ?CredentialChallenge;
 
-    public function consume(string $id): void;
+    public function consume(string $id): bool;
 }

@@ -110,18 +110,25 @@ final class CredentialService
         if ($violations !== []) {
             return $this->policyViolation($violations);
         }
-        DB::transaction(function () use ($challenge, $user, $newPassword): void {
+        $consumed = DB::transaction(function () use ($challenge, $user, $newPassword): bool {
+            if (! $this->challenges->consume((string) $challenge->id)) {
+                return false;
+            }
             if ($this->credentials->findByUserId((string) $user->id) === null) {
                 $this->credentials->createForUser((string) $user->id, Hash::make($newPassword));
             } else {
                 $this->credentials->updateHash((string) $user->id, Hash::make($newPassword));
             }
-            $this->challenges->consume((string) $challenge->id);
             $this->sessions->revokeAllForUser((string) $user->id, null, 'password_reset');
             $this->refreshTokens->revokeForUser((string) $user->id, null, 'password_reset');
             $this->audit->audit('identity.credential.password_reset', (string) $user->id, 'user', 'user', (string) $user->id, 'success');
             $this->audit->security('auth.credential.reset', (string) $user->id, null, 'success', []);
+
+            return true;
         });
+        if (! $consumed) {
+            return $this->challengeInvalid();
+        }
 
         return (new HttpSuccessResponseObject)->setStatus(200)->setMessage((string) trans('identity.credentials.recovery_completed'));
     }
@@ -140,13 +147,20 @@ final class CredentialService
         if ($violations !== []) {
             return $this->policyViolation($violations);
         }
-        DB::transaction(function () use ($challenge, $user, $newPassword): void {
+        $consumed = DB::transaction(function () use ($challenge, $user, $newPassword): bool {
+            if (! $this->challenges->consume((string) $challenge->id)) {
+                return false;
+            }
             $this->credentials->createForUser((string) $user->id, Hash::make($newPassword));
             $this->users->setStatus((string) $user->id, User::STATUS_ACTIVE, null);
-            $this->challenges->consume((string) $challenge->id);
             $this->audit->audit('identity.bootstrap.account_activated', (string) $user->id, 'user', 'user', (string) $user->id, 'success');
             $this->audit->security('auth.account.activated', (string) $user->id, null, 'success', ['via' => 'bootstrap_setup_token']);
+
+            return true;
         });
+        if (! $consumed) {
+            return $this->challengeInvalid();
+        }
 
         return (new HttpSuccessResponseObject)->setStatus(201)->setMessage((string) trans('identity.credentials.account_setup_completed'));
     }
@@ -185,12 +199,19 @@ final class CredentialService
         if ($verification === null) {
             return $this->challengeInvalid();
         }
-        DB::transaction(function () use ($verification): void {
-            $this->identifiers->consumeVerification((string) $verification->id);
+        $consumed = DB::transaction(function () use ($verification): bool {
+            if (! $this->identifiers->consumeVerification((string) $verification->id)) {
+                return false;
+            }
             $this->identifiers->markVerified((string) $verification->login_identifier_id);
             $this->audit->audit('identity.credential.email_verified', null, 'system', 'login_identifier', (string) $verification->login_identifier_id, 'success');
             $this->audit->security('auth.email_verification.completed', null, null, 'success', ['login_identifier_id' => (string) $verification->login_identifier_id]);
+
+            return true;
         });
+        if (! $consumed) {
+            return $this->challengeInvalid();
+        }
 
         return (new HttpSuccessResponseObject)->setStatus(200)->setMessage((string) trans('identity.credentials.verification_completed'));
     }

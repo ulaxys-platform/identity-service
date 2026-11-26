@@ -1,6 +1,6 @@
 # ADR-0001: Authentication engine selection
 
-- Status: Accepted for implementation unit I1; full OAuth2/OIDC engine adoption re-evaluated at the I2 gate.
+- Status: PROPOSED / NOT ACCEPTED. The existing first-party token core is an unaccepted review candidate, not a selected production engine. Superseded for decision purposes by `docs/review-remediation.md` until the I0 engine gate is resolved.
 - Date: 2026-11-26
 - Deciders: Identity service implementation team
 

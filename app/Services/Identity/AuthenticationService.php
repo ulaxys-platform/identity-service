@@ -110,6 +110,10 @@ final class AuthenticationService
         try {
             $issued = $this->tokens->rotate($refreshToken);
         } catch (TokenException $exception) {
+            if ($exception->reason === TokenException::KEYS_UNAVAILABLE) {
+                return (new HttpErrorResponseObjectOfResult)
+                    ->setStatus(503)->setCode(503)->setMessage('Authentication dependency unavailable.');
+            }
             $reason = $exception->reason === TokenException::REUSE_DETECTED ? 'refresh_token_reuse' : 'invalid_refresh_token';
             $this->audit->security('auth.token.refresh.failure', null, null, 'failure', ['reason' => $reason], $ipHash);
 

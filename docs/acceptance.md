@@ -1,5 +1,7 @@
 # Acceptance matrix (I1 review unit)
 
+**Review gate:** Test files are evidence of coverage design only, not execution. Hosted CI quota exhaustion is an infrastructure blocker; local equivalent gates remain mandatory. See `docs/review-remediation.md`.
+
 Classification legend: IMPLEMENTED (code exists) / TESTED (shipped suites cover it) / VERIFIED (ran in the target environment) / NOT VERIFIED (could not run here) / DEFERRED (planned unit) / BLOCKED (environment).
 
 | Capability | Status | Evidence |

@@ -28,6 +28,7 @@ use Ulaxys\Identity\Repositories\RepositoryInterface\PlatformAdministratorReposi
 use Ulaxys\Identity\Repositories\RepositoryInterface\RefreshTokenRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\SigningKeyRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\UserRepositoryInterface;
+use Ulaxys\Identity\Models\LoginIdentifier;
 use Ulaxys\Identity\Services\Identity\AuditLogger;
 use Ulaxys\Identity\Services\Identity\Delivery\LogTokenDelivery;
 use Ulaxys\Identity\Services\Identity\Delivery\NullTokenDelivery;
@@ -62,7 +63,7 @@ final class AppServiceProvider extends ServiceProvider
     private function registerRateLimiters(): void
     {
         RateLimiter::for('identity-login', function (Request $request) {
-            $key = AuditLogger::hashWithPepper((string) $request->input('identifier')).'|'.AuditLogger::hashWithPepper((string) $request->ip());
+            $key = AuditLogger::hashWithPepper(LoginIdentifier::normalize((string) $request->input('identifier'))).'|'.AuditLogger::hashWithPepper((string) $request->ip());
             $decay = max(60, (int) config('identity.throttle.login_decay_seconds', 300));
             $max = max(1, (int) config('identity.throttle.login_max_attempts', 8));
 
@@ -100,9 +101,15 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->bind(TokenDeliveryInterface::class, function ($app) {
             // The log driver stores one-time tokens in plaintext by design and
             // is documented as local-development only (docs/operator-runbook.md).
-            return (string) config('identity.delivery.driver', 'null') === 'log'
-                ? new LogTokenDelivery
-                : new NullTokenDelivery;
+            if ((string) config('identity.delivery.driver', 'null') === 'log') {
+                if (! $app->environment('local', 'testing')) {
+                    throw new \RuntimeException('Plaintext token delivery is restricted to local/testing environments.');
+                }
+
+                return new LogTokenDelivery;
+            }
+
+            return new NullTokenDelivery;
         });
     }
 }

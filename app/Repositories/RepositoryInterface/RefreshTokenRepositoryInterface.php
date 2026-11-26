@@ -12,7 +12,7 @@ interface RefreshTokenRepositoryInterface
 
     public function findByTokenHash(string $tokenHash): ?RefreshToken;
 
-    public function consume(string $id): void;
+    public function consume(string $id): bool;
 
     /** @return int number of revoked rows in the family */
     public function revokeFamily(string $familyId, string $reason): int;

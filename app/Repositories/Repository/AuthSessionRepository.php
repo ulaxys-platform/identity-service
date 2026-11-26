@@ -19,6 +19,11 @@ final class AuthSessionRepository implements AuthSessionRepositoryInterface
         return AuthSession::query()->find($id);
     }
 
+    public function lockById(string $id): ?AuthSession
+    {
+        return AuthSession::query()->whereKey($id)->lockForUpdate()->first();
+    }
+
     public function touch(string $id): void
     {
         AuthSession::query()->whereKey($id)->update(['last_seen_at' => now()]);

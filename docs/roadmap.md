@@ -21,7 +21,9 @@ Result classifications follow the final report: IMPLEMENTED / TESTED / VERIFIED 
 
 - DEFERRED: Google/Microsoft/generic OIDC federation (provider registry, discovery, PKCE, state/nonce, ID-token validation, secure linking), TOTP MFA with encrypted secrets and single-use recovery codes, passkeys via `web-auth/webauthn-lib`. Design boundaries are pre-drawn in docs/identity-providers.md, docs/mfa.md, docs/passkeys.md and docs/oauth-oidc.md. Real provider acceptance will be NOT VERIFIED until run against actual providers (a controlled mock OIDC server is planned for automated protocol tests).
 
-## I3 — Organization and access management
+## I3 — Organization and access management (historical proposal; not approved)
+
+Authorization belongs in a separate Access Management ownership boundary per the PR remediation direction. Organization/department record ownership remains open. Do not implement the historical Identity-local scope below; consult the central `ulaxys-docs` ADRs and `docs/review-remediation.md`.
 
 - DEFERRED: organizations, departments, memberships, scoped RBAC (roles/permissions/role-permissions/assignments), permission catalog import (idempotent, dry-run, conflict detection, no automatic grants), authorization decision engine (single/batch/any-of/all-of/scope-aware, deny-by-default). docs/authorization-model.md sketches the schema and engine contract; the interim platform-administrator gate is migrated away here.
 

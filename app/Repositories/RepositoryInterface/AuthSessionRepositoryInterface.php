@@ -12,6 +12,9 @@ interface AuthSessionRepositoryInterface
 
     public function findById(string $id): ?AuthSession;
 
+    /** Only call inside a transaction. */
+    public function lockById(string $id): ?AuthSession;
+
     public function touch(string $id): void;
 
     public function revoke(string $id, string $reason): void;
