@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-kc=identity-cloud-keycloak
-app=identity-cloud-app
+stack=${IDENTITY_R0_STACK:-identity-cloud}
+[[ "$stack" =~ ^identity-[a-z0-9-]+$ ]]
+kc="$stack-keycloak"
+app="$stack-app"
 probe() {
     docker exec -i "$app" php -r '
         require "/app/vendor/autoload.php";

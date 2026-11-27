@@ -4,8 +4,10 @@ cd "$(dirname "$0")/../.."
 umask 077
 fixture=$(mktemp -d)
 realm="identity-r0-$(openssl rand -hex 6)"
-kc=identity-cloud-keycloak
-app=identity-cloud-app
+stack=${IDENTITY_R0_STACK:-identity-cloud}
+[[ "$stack" =~ ^identity-[a-z0-9-]+$ ]]
+kc="$stack-keycloak"
+app="$stack-app"
 admin_config="/tmp/$realm-kcadm"
 realm_file="/tmp/$realm.json"
 cleanup() {
