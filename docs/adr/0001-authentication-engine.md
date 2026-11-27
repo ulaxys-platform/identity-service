@@ -1,6 +1,8 @@
 # ADR-0001: Authentication engine selection
 
-- Status: PROPOSED / NOT ACCEPTED. The existing first-party token core is an unaccepted review candidate, not a selected production engine. Superseded for decision purposes by `docs/review-remediation.md` until the I0 engine gate is resolved.
+> R0 update (2026-11-27): Product Owner approved self-hosted Keycloak as sole credential/token authority, Laravel Identity as platform ULID/profile/lifecycle/mapping authority, and separate Access Management. Historical candidate design below is superseded; see R0 implementation direction and canonical ADR-0015 in https://github.com/ulaxys-platform/ulaxys-docs/pull/3. No runtime acceptance implied.
+
+- Status: SUPERSEDED for target architecture by approved R0; historical candidate retained.
 - Date: 2026-11-26
 - Deciders: Identity service implementation team
 

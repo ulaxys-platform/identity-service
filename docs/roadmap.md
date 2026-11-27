@@ -1,3 +1,9 @@
+# Identity V2 roadmap — R0 approved
+
+See [approved R0](r0-approved-architecture.md). R0 architecture ACCEPTED; technical PoC pending. R1 dependency/template gates; R2 provider refactor and review disposition; R3 lifecycle and mapping; R4 OIDC/session; R5 federation/MFA; R6 machine/Gateway/Access Management contracts; R7 OpenAPI/parity; R8 isolated local acceptance/migration; R9 independent security review. No phase implementation is claimed by this update.
+
+## Historical candidate roadmap (superseded)
+
 # Identity V2 roadmap and implementation status
 
 Result classifications follow the final report: IMPLEMENTED / TESTED / VERIFIED / NOT VERIFIED / DEFERRED / BLOCKED. "TESTED" means the shipped suites cover the behavior; "VERIFIED" additionally requires a real run in the target environment (repository CI, Docker, disposable PostgreSQL), which this sandbox could not execute (no PHP/Composer/Docker runtime; see docs/acceptance.md).

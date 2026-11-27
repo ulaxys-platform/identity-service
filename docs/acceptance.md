@@ -1,5 +1,7 @@
 # Acceptance matrix (I1 review unit)
 
+> R0 update (2026-11-27): Product Owner approved self-hosted Keycloak as sole credential/token authority, Laravel Identity as platform ULID/profile/lifecycle/mapping authority, and separate Access Management. Historical candidate design below is superseded; see R0 implementation direction and canonical ADR-0015 in https://github.com/ulaxys-platform/ulaxys-docs/pull/3. No runtime acceptance implied.
+
 **Review gate:** Test files are evidence of coverage design only, not execution. Hosted CI quota exhaustion is an infrastructure blocker; local equivalent gates remain mandatory. See `docs/review-remediation.md`.
 
 Classification legend: IMPLEMENTED (code exists) / TESTED (shipped suites cover it) / VERIFIED (ran in the target environment) / NOT VERIFIED (could not run here) / DEFERRED (planned unit) / BLOCKED (environment).

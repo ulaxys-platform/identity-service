@@ -1,3 +1,9 @@
+# Implementation handoff — R0 approved
+
+Read [R0](r0-approved-architecture.md), canonical ADR-0015 in https://github.com/ulaxys-platform/ulaxys-docs/pull/3, and [review findings](review-remediation.md). Continue PR #1 only; inspect current HEAD. No merge, regeneration, visibility change or PR #2 implementation. Next deliver real Keycloak technical PoC before engine-dependent refactor. Preserve useful domain/template code, resolve IDV2-001–016, retain quality gates, no duplicate authority or direct provider DB access. Preserve legacy integration and report exact SHA, tests and blockers in Turkish.
+
+## Historical handoff (superseded)
+
 # Implementation handoff
 
 ## What the reviewing team receives

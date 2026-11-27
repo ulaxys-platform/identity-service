@@ -1,5 +1,7 @@
 # API Gateway integration contract (version 1)
 
+> R0 update (2026-11-27): Product Owner approved self-hosted Keycloak as sole credential/token authority, Laravel Identity as platform ULID/profile/lifecycle/mapping authority, and separate Access Management. Historical candidate design below is superseded; see R0 implementation direction and canonical ADR-0015 in https://github.com/ulaxys-platform/ulaxys-docs/pull/3. No runtime acceptance implied.
+
 Status: IMPLEMENTED contract endpoints (actor context, JWKS, introspection, revocation); the full authorization API is DEFERRED to I5. This document is the independent handoff for the Gateway team.
 
 ## Trust model
