@@ -8,6 +8,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Ulaxys\Identity\Models\LoginIdentifier;
 use Ulaxys\Identity\Repositories\Repository\AuditRepository;
 use Ulaxys\Identity\Repositories\Repository\AuthSessionRepository;
 use Ulaxys\Identity\Repositories\Repository\CredentialChallengeRepository;
@@ -28,11 +29,11 @@ use Ulaxys\Identity\Repositories\RepositoryInterface\PlatformAdministratorReposi
 use Ulaxys\Identity\Repositories\RepositoryInterface\RefreshTokenRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\SigningKeyRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\UserRepositoryInterface;
-use Ulaxys\Identity\Models\LoginIdentifier;
 use Ulaxys\Identity\Services\Identity\AuditLogger;
 use Ulaxys\Identity\Services\Identity\Delivery\LogTokenDelivery;
 use Ulaxys\Identity\Services\Identity\Delivery\NullTokenDelivery;
 use Ulaxys\Identity\Services\Identity\Delivery\TokenDeliveryInterface;
+use Ulaxys\Identity\Services\Identity\Tokens\JwtCodec;
 
 final class AppServiceProvider extends ServiceProvider
 {
@@ -48,6 +49,14 @@ final class AppServiceProvider extends ServiceProvider
         SigningKeyRepositoryInterface::class => SigningKeyRepository::class,
         AuditRepositoryInterface::class => AuditRepository::class,
     ];
+
+    public function register(): void
+    {
+        $this->app->singleton(JwtCodec::class, fn () => new JwtCodec(
+            (string) config('identity.issuer'),
+            (int) config('identity.token.clock_skew_seconds', 30),
+        ));
+    }
 
     public function boot(): void
     {
