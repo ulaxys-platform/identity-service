@@ -91,7 +91,7 @@ final class IdentityAuthenticationFlowTest extends TestCase
         $access = (string) $login->json('tokens.accessToken');
         $this->withHeader('Signature', $this->signature())
             ->withHeader('Authorization', 'Bearer '.$access)
-            ->postJson('/api/v1/auth/logout')
+            ->postJson('/api/v1/auth/logout', options: JSON_FORCE_OBJECT)
             ->assertOk();
         $this->withHeader('Signature', $this->signature())
             ->withHeader('Authorization', 'Bearer '.$access)

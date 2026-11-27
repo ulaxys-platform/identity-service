@@ -7,7 +7,6 @@ namespace Ulaxys\Identity\Http\Controllers\Identity;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes as OA;
 use Ulaxys\Identity\Http\Controllers\Controller;
-use Ulaxys\Identity\Http\Middleware\Identity\VerifyActorToken;
 use Ulaxys\Identity\Http\Requests\Identity\UpdateProfileRequest;
 use Ulaxys\Identity\Presenters\Mapper\Identity\UserMapper;
 use Ulaxys\Identity\Repositories\RepositoryInterface\UserRepositoryInterface;

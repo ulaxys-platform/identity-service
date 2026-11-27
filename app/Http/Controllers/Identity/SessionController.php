@@ -8,9 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 use Ulaxys\Identity\Http\Controllers\Controller;
-use Ulaxys\Identity\Http\Middleware\Identity\VerifyActorToken;
 use Ulaxys\Identity\Services\Identity\SessionService;
-use Ulaxys\Identity\Transformers\Identity\SessionListResponse;
 
 final class SessionController extends Controller
 {

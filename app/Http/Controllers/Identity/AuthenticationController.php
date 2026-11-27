@@ -8,7 +8,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 use Ulaxys\Identity\Http\Controllers\Controller;
-use Ulaxys\Identity\Http\Middleware\Identity\VerifyActorToken;
 use Ulaxys\Identity\Http\Requests\Identity\AccountSetupRequest;
 use Ulaxys\Identity\Http\Requests\Identity\LoginRequest;
 use Ulaxys\Identity\Http\Requests\Identity\RefreshTokenRequest;

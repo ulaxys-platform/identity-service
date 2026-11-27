@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ulaxys\Identity\Tests\Database;
 
+use Ulaxys\Identity\Models\User;
 use Ulaxys\Identity\Services\Identity\Tokens\JwtCodec;
 use Ulaxys\Identity\Tests\Support\Identity\InteractsWithIdentityDatabase;
 use Ulaxys\Identity\Tests\TestCase;
@@ -45,10 +46,11 @@ final class IdentityTokenLifecycleTest extends TestCase
             ->assertJsonPath('items.active', true)
             ->assertJsonPath('items.sub', (string) $user->id)
             ->assertJsonPath('items.tokenType', 'access');
-        $introspect('garbage-token')->assertOk()->assertJsonPath('items.active', false);
+        $introspect('garbage-token')->assertStatus(400);
+        $introspect('malformed-token-fixture')->assertOk()->assertJsonPath('items.active', false);
         $this->withHeader('Signature', $this->signature())
             ->withHeader('Authorization', 'Bearer '.$access)
-            ->postJson('/api/v1/auth/logout')
+            ->postJson('/api/v1/auth/logout', options: JSON_FORCE_OBJECT)
             ->assertOk();
         $introspect($access)->assertOk()->assertJsonPath('items.active', false);
     }
@@ -87,6 +89,7 @@ final class IdentityTokenLifecycleTest extends TestCase
         $oldAccess = (string) $login->json('tokens.accessToken');
         $this->identityKeys->generate(true);
         $this->withHeaders($this->bearer($oldAccess))->getJson('/api/v1/profile/me')->assertOk();
+        $this->travel(2)->seconds();
         config(['identity.keys.retired_publication_days' => 0]);
         $this->withHeaders($this->bearer($oldAccess))->getJson('/api/v1/profile/me')->assertStatus(401);
         $this->loginJson('rotate-keys@ulaxys.test', 'Test-Passphrase-123')->assertOk();
@@ -104,7 +107,7 @@ final class IdentityTokenLifecycleTest extends TestCase
         $this->withHeader('Signature', $this->signature())
             ->postJson('/api/v1/oauth/introspect', ['token' => $wrongAudience])
             ->assertOk()->assertJsonPath('items.active', false);
-        $user->update(['status' => \Ulaxys\Identity\Models\User::STATUS_SUSPENDED]);
+        $user->update(['status' => User::STATUS_SUSPENDED]);
         $this->withHeader('Signature', $this->signature())
             ->postJson('/api/v1/oauth/introspect', ['token' => $access])
             ->assertOk()->assertJsonPath('items.active', false);

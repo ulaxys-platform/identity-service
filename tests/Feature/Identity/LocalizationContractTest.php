@@ -24,7 +24,7 @@ final class LocalizationContractTest extends TestCase
         $en = require base_path('lang/en/identity.php');
         foreach (['tr', 'ar'] as $locale) {
             $messages = require base_path('lang/'.$locale.'/identity.php');
-            $this->assertSame($this->flatten($en), $this->flatten($messages), 'Localization key mismatch for '.$locale);
+            $this->assertSame(array_keys($this->flatten($en)), array_keys($this->flatten($messages)), 'Localization key mismatch for '.$locale);
         }
     }
 
@@ -56,6 +56,7 @@ final class LocalizationContractTest extends TestCase
             $path = $prefix === '' ? (string) $key : $prefix.'.'.$key;
             if (is_array($value)) {
                 $flat += $this->flatten($value, $path);
+
                 continue;
             }
             $flat[$path] = $value;

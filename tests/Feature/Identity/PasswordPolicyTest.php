@@ -24,7 +24,7 @@ final class PasswordPolicyTest extends TestCase
 
     public function test_rejects_passwords_below_the_minimum_length(): void
     {
-        $this->assertContains(PasswordPolicy::TOO_SHORT, $this->policy->violations('short-pass-1'));
+        $this->assertContains(PasswordPolicy::TOO_SHORT, $this->policy->violations('short-pass-'));
     }
 
     public function test_rejects_passwords_above_the_maximum_length(): void

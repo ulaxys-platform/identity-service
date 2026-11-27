@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ulaxys\Identity\Services\Identity\Bootstrap;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Ulaxys\Identity\Models\CredentialChallenge;
@@ -30,7 +31,7 @@ final class BootstrapAdministratorService
         private readonly AuditLogger $audit,
     ) {}
 
-    /** @return array{created: bool, user_id: string, token: ?string, expires_at: \Illuminate\Support\Carbon|null} */
+    /** @return array{created: bool, user_id: string, token: ?string, expires_at: Carbon|null} */
     public function bootstrap(string $identifier, string $displayName, int $ttlMinutes): array
     {
         return DB::transaction(function () use ($identifier, $displayName, $ttlMinutes): array {

@@ -15,7 +15,6 @@ use Ulaxys\Identity\Transformers\ErrorResponseObjects\HttpErrorResponseObjectOfR
 use Ulaxys\Identity\Transformers\Identity\UserCreatedResponse;
 use Ulaxys\Identity\Transformers\Identity\UserListResponse;
 use Ulaxys\Identity\Transformers\Identity\UserProfileResponse;
-use Ulaxys\Identity\Transformers\ResponseObject;
 
 /**
  * Interim I1 user administration (ADR-0004): requires an active platform
@@ -61,7 +60,7 @@ final class UserAdministrationService
             return $this->identifierConflict();
         }
         try {
-            $user = DB::transaction(function () use ($actor, $data, $kind, $identifier, $normalized): User {
+            $user = DB::transaction(function () use ($actor, $data, $kind, $identifier): User {
                 $user = $this->users->createWithProfile(
                     ['status' => User::STATUS_INVITED, 'type' => User::TYPE_HUMAN, 'created_by' => (string) $actor->id],
                     [

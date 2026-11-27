@@ -50,12 +50,13 @@ final class IdentitySecurityRegressionTest extends TestCase
         $attacker = $this->loginJson('attacker@ulaxys.test', 'Test-Passphrase-123')->assertOk();
         $ownerSession = (string) $owner->json('actor.sessionId');
         $this->withHeaders($this->bearer((string) $attacker->json('tokens.accessToken')))
-            ->deleteJson('/api/v1/sessions/'.$ownerSession)
+            ->deleteJson('/api/v1/sessions/'.$ownerSession, options: JSON_FORCE_OBJECT)
             ->assertStatus(404);
         $this->withHeaders($this->bearer((string) $owner->json('tokens.accessToken')))
             ->getJson('/api/v1/sessions')
             ->assertOk()
-            ->assertJsonCount(2, 'items');
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.id', $ownerSession);
     }
 
     public function test_user_administration_requires_the_bootstrap_grant(): void

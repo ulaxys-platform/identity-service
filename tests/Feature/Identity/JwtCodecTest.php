@@ -27,8 +27,8 @@ final class JwtCodecTest extends TestCase
     {
         $now = time();
 
-        return ['iss' => 'https://identity.test', 'aud' => 'ulaxys-platform', 'sub' => '01TESTSUBJECT0000000', 'sid' => '01TESTSESSION0000000',
-            'amr' => ['password'], 'iat' => $now, 'nbf' => $now, 'exp' => $now + 600, 'jti' => 'test-jti'] + $overrides;
+        return array_replace(['iss' => 'https://identity.test', 'aud' => 'ulaxys-platform', 'sub' => '01TESTSUBJECT0000000', 'sid' => '01TESTSESSION0000000',
+            'amr' => ['password'], 'iat' => $now, 'nbf' => $now, 'exp' => $now + 600, 'jti' => 'test-jti'], $overrides);
     }
 
     public function test_roundtrips_claims_with_rs256_signature(): void

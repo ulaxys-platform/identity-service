@@ -7,6 +7,8 @@ namespace Ulaxys\Identity\Http\Controllers\Identity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
+use Ulaxys\Identity\Dto\Identity\JwkSetDto;
+use Ulaxys\Identity\Dto\Identity\TokenIntrospectionDto;
 use Ulaxys\Identity\Http\Controllers\Controller;
 use Ulaxys\Identity\Http\Requests\Identity\IntrospectTokenRequest;
 use Ulaxys\Identity\Http\Requests\Identity\RevokeTokenRequest;
@@ -15,14 +17,12 @@ use Ulaxys\Identity\Repositories\RepositoryInterface\RefreshTokenRepositoryInter
 use Ulaxys\Identity\Repositories\RepositoryInterface\UserRepositoryInterface;
 use Ulaxys\Identity\Services\Identity\AuditLogger;
 use Ulaxys\Identity\Services\Identity\Tokens\Jwk;
+use Ulaxys\Identity\Services\Identity\Tokens\JwtCodec;
 use Ulaxys\Identity\Services\Identity\Tokens\SigningKeyService;
 use Ulaxys\Identity\Services\Identity\Tokens\TokenException;
-use Ulaxys\Identity\Dto\Identity\JwkSetDto;
-use Ulaxys\Identity\Dto\Identity\TokenIntrospectionDto;
 use Ulaxys\Identity\Transformers\HttpSuccessResponseObject;
 use Ulaxys\Identity\Transformers\Identity\IntrospectionResponse;
 use Ulaxys\Identity\Transformers\Identity\JwkSetResponse;
-use Ulaxys\Identity\Services\Identity\Tokens\JwtCodec;
 
 /**
  * Internal Gateway token-validation contract endpoints (RFC 7662 / RFC 7009
@@ -136,6 +136,7 @@ final class OAuthContractController extends Controller
             if ($exception->reason === TokenException::KEYS_UNAVAILABLE) {
                 return response()->json(['status' => 503, 'code' => 503, 'message' => 'Authentication dependency unavailable.'], 503);
             }
+
             // RFC 7009: unknown or invalid tokens still yield a 200 response.
             return response()->json((new HttpSuccessResponseObject)->setStatus(200)->setMessage('Token revoked.')->toArray(), 200);
         }

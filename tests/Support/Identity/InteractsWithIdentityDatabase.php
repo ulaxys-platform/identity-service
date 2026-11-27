@@ -12,7 +12,6 @@ use Ulaxys\Identity\Models\User;
 use Ulaxys\Identity\Models\UserProfile;
 use Ulaxys\Identity\Services\Identity\Tokens\SigningKeyService;
 use Ulaxys\Identity\Tests\Support\DestructiveDatabaseGuard;
-use Ulaxys\Identity\Tests\TestCase;
 
 /**
  * Shared setup for destructive Identity database tests. Enforces the template

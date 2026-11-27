@@ -7,7 +7,6 @@ namespace Ulaxys\Identity\Http\Controllers\Identity;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes as OA;
 use Ulaxys\Identity\Http\Controllers\Controller;
-use Ulaxys\Identity\Http\Middleware\Identity\VerifyActorToken;
 use Ulaxys\Identity\Services\Identity\ActorContextService;
 use Ulaxys\Identity\Transformers\Identity\ActorContextResponse;
 

@@ -38,11 +38,15 @@ final class HsCodeReferenceParityTest extends TestCase
     private function normalizedHash(string $path): string
     {
         $content = (string) file_get_contents($path);
-        $content = preg_replace_callback(
-            '/^namespace Ulaxys\\\\[A-Za-z0-9_]+\\\\/m',
-            fn (): string => 'namespace Ulaxys\__SERVICE__\\',
-            $content,
-        ) ?? $content;
+        // Namespace generation also reorders the top-level imports. Keep the
+        // complete import set, aliases and all other source bytes in the comparison.
+        $content = preg_replace('/^(namespace|use) (?:App|Ulaxys\\\\Identity)\\\\/m', '$1 {service}\\', $content);
+        $content = preg_replace_callback('/(?:^use [^\n]+;\n)+/m', static function (array $matches): string {
+            $imports = explode("\n", rtrim($matches[0], "\n"));
+            sort($imports, SORT_STRING);
+
+            return implode("\n", $imports)."\n";
+        }, $content);
 
         return hash('sha256', $content);
     }

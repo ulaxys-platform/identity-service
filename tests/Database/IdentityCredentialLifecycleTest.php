@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Ulaxys\Identity\Tests\Database;
 
-use Illuminate\Support\Facades\Hash;
 use Ulaxys\Identity\Models\CredentialChallenge;
 use Ulaxys\Identity\Models\LoginIdentifier;
+use Ulaxys\Identity\Repositories\RepositoryInterface\CredentialChallengeRepositoryInterface;
 use Ulaxys\Identity\Services\Identity\Bootstrap\BootstrapAdministratorService;
+use Ulaxys\Identity\Services\Identity\Delivery\TokenDeliveryInterface;
 use Ulaxys\Identity\Tests\Support\Identity\CapturingDelivery;
 use Ulaxys\Identity\Tests\Support\Identity\InteractsWithIdentityDatabase;
 use Ulaxys\Identity\Tests\TestCase;
@@ -45,6 +46,7 @@ final class IdentityCredentialLifecycleTest extends TestCase
 
         $this->withHeaders($this->bearer($otherAccess))->getJson('/api/v1/profile/me')->assertStatus(401);
         $this->withHeaders($this->bearer($currentAccess))->getJson('/api/v1/profile/me')->assertOk();
+        $this->travel(61)->seconds();
         $this->loginJson('change@ulaxys.test', 'Test-Passphrase-123')->assertStatus(401);
         $this->loginJson('change@ulaxys.test', 's3ntence-Staple-Calm-9')->assertOk();
     }
@@ -69,6 +71,7 @@ final class IdentityCredentialLifecycleTest extends TestCase
         $this->createIdentityUser('forgot@ulaxys.test', 'Test-Passphrase-123');
         $existing = $this->withHeader('Signature', $this->signature())
             ->postJson('/api/v1/credentials/forgot-password', ['identifier' => 'forgot@ulaxys.test']);
+        $this->travel(61)->seconds();
         $missing = $this->withHeader('Signature', $this->signature())
             ->postJson('/api/v1/credentials/forgot-password', ['identifier' => 'ghost@ulaxys.test']);
         $existing->assertOk();
@@ -79,7 +82,7 @@ final class IdentityCredentialLifecycleTest extends TestCase
     public function test_reset_password_is_single_use_and_revokes_all_sessions(): void
     {
         $delivery = new CapturingDelivery;
-        $this->app->instance(\Ulaxys\Identity\Services\Identity\Delivery\TokenDeliveryInterface::class, $delivery);
+        $this->app->instance(TokenDeliveryInterface::class, $delivery);
         $this->createIdentityUser('reset@ulaxys.test', 'Test-Passphrase-123');
         $first = $this->loginJson('reset@ulaxys.test', 'Test-Passphrase-123')->assertOk();
 
@@ -88,12 +91,14 @@ final class IdentityCredentialLifecycleTest extends TestCase
             ->assertOk();
         $token = (string) $delivery->lastToken('password_reset');
         $this->assertNotSame('', $token);
+        $this->travel(61)->seconds();
 
         $this->withHeader('Signature', $this->signature())
             ->postJson('/api/v1/credentials/reset-password', ['token' => $token, 'newPassword' => 's3ntence-Staple-Calm-9'])
             ->assertOk();
         $this->withHeaders($this->bearer((string) $first->json('tokens.accessToken')))->getJson('/api/v1/profile/me')->assertStatus(401);
         $this->loginJson('reset@ulaxys.test', 'Test-Passphrase-123')->assertStatus(401);
+        $this->travel(61)->seconds();
         $this->loginJson('reset@ulaxys.test', 's3ntence-Staple-Calm-9')->assertOk();
 
         $this->withHeader('Signature', $this->signature())
@@ -135,13 +140,13 @@ final class IdentityCredentialLifecycleTest extends TestCase
     public function test_email_verification_start_and_confirm(): void
     {
         $delivery = new CapturingDelivery;
-        $this->app->instance(\Ulaxys\Identity\Services\Identity\Delivery\TokenDeliveryInterface::class, $delivery);
+        $this->app->instance(TokenDeliveryInterface::class, $delivery);
         $user = $this->createIdentityUser('verify@ulaxys.test', 'Test-Passphrase-123');
         $login = $this->loginJson('verify@ulaxys.test', 'Test-Passphrase-123')->assertOk();
         $access = (string) $login->json('tokens.accessToken');
         $this->assertNull(LoginIdentifier::query()->where('user_id', $user->id)->first()->verified_at);
         $this->withHeaders($this->bearer($access))
-            ->postJson('/api/v1/credentials/email-verification/start')
+            ->postJson('/api/v1/credentials/email-verification/start', options: JSON_FORCE_OBJECT)
             ->assertOk();
         $token = (string) $delivery->lastToken('email_verification');
         $this->assertNotSame('', $token);
@@ -149,6 +154,7 @@ final class IdentityCredentialLifecycleTest extends TestCase
             ->postJson('/api/v1/credentials/email-verification/confirm', ['token' => $token])
             ->assertOk();
         $this->assertNotNull(LoginIdentifier::query()->where('user_id', $user->id)->first()->verified_at);
+        $this->travel(61)->seconds();
         $this->withHeader('Signature', $this->signature())
             ->postJson('/api/v1/credentials/email-verification/confirm', ['token' => $token])
             ->assertStatus(400);
@@ -165,7 +171,7 @@ final class IdentityCredentialLifecycleTest extends TestCase
     public function test_credential_repository_consumption_requires_a_fresh_unexpired_row(): void
     {
         $user = $this->createIdentityUser('consume@ulaxys.test', 'Test-Passphrase-123');
-        $repo = $this->app->make(\Ulaxys\Identity\Repositories\RepositoryInterface\CredentialChallengeRepositoryInterface::class);
+        $repo = $this->app->make(CredentialChallengeRepositoryInterface::class);
         $token = $this->createChallenge((string) $user->id, 'password_reset');
         $record = $repo->findByTokenHash(hash('sha256', $token));
         $this->assertNotNull($record);

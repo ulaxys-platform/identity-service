@@ -7,6 +7,7 @@ namespace Ulaxys\Identity\Services\Identity;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Throwable;
+use Ulaxys\Identity\Models\AuthSession;
 use Ulaxys\Identity\Models\LoginIdentifier;
 use Ulaxys\Identity\Models\User;
 use Ulaxys\Identity\Repositories\RepositoryInterface\AuthSessionRepositoryInterface;
@@ -14,7 +15,6 @@ use Ulaxys\Identity\Repositories\RepositoryInterface\LoginIdentifierRepositoryIn
 use Ulaxys\Identity\Repositories\RepositoryInterface\PasswordCredentialRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\RefreshTokenRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\UserRepositoryInterface;
-use Ulaxys\Identity\Services\Identity\Tokens\SessionGrant;
 use Ulaxys\Identity\Services\Identity\Tokens\TokenException;
 use Ulaxys\Identity\Transformers\ErrorResponseObjects\HttpErrorResponseObjectOfResult;
 use Ulaxys\Identity\Transformers\HttpSuccessResponseObject;

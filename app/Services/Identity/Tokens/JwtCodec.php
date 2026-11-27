@@ -50,7 +50,7 @@ final class JwtCodec
     }
 
     /**
-     * @param array<string, string> $publicKeysByKid kid => PEM
+     * @param  array<string, string>  $publicKeysByKid  kid => PEM
      * @return array<string, mixed> validated claims
      */
     public function decode(string $token, array $publicKeysByKid, ?string $expectedAudience = null): array
