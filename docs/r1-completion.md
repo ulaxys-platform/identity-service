@@ -1,6 +1,6 @@
 # Identity V2 R1 doğrulaması
 
-27 Kasım 2026. Başlangıç `ccdba328f1026747bf7254d592aa82d9ae584048`, PR #1. [R0 kanıtı](r0-technical-poc.md) ve ADR-0015 geçerli. R1, audit ve strict template kanıtları beklediği için **BLOCKED**. R2–R9 geçişi bekliyor.
+27 Kasım 2026. Başlangıç `ccdba328f1026747bf7254d592aa82d9ae584048`, PR #1. [R0 kanıtı](r0-technical-poc.md) ve ADR-0015 geçerli. R1A lokal Composer audit kapısı **PASS**; R1, strict template, referans parity ve açık güvenlik regresyonları nedeniyle **BLOCKED**. R2–R9 geçişi bekliyor.
 
 ## Kurulum ve bağımlılık
 
@@ -15,7 +15,7 @@ bash scripts/identity-r0/run.sh
 
 Aynı Docker sunucusunda ayrı bir yerel kurulum için dört komutta da `IDENTITY_R0_STACK=identity-r1-fresh` kullanın. Varsayılan durum dizini `/workspace/$IDENTITY_R0_STACK`, alternatif dizin ayarı `IDENTITY_R0_STATE`. Ayrı stack farklı Docker ağı, konteynerler ve vendor volume kullanır. Çalışma zamanı değerleri ve yerel anahtarlar durum dizininde üretilir. Yeni Docker ağı ve iki yeni PostgreSQL veritabanı üzerinde migration, Keycloak discovery ve R0 PoC doğrulandı. Yayımlanmış bulut snapshot’ının ayrı makinede geri yüklenmesi bekliyor.
 
-`composer validate --strict` ve `composer check-platform-reqs` çıkış 0. Önceki Composer lock içeriği korundu. `composer audit --locked` çıkış 100, cURL 56. Packagist bağlantısı proxy CONNECT aşamasında 403 döndü, upstream HTTP kodu yok. Taslakta `packagist.org` ve `api.github.com` var. Çalışan örneğin etkin özel alan adı listesi boş. Cloud Environment ayarlarında taslağı inceleyip uygulayın ve HTTPS bağlantısının etkinleştiğini doğrulayın. Ürün sahibi, ağ erişimi olan ve PHP 8.5 ile Composer 2 içeren bir makinede şu komutlarla aynı kilit dosyasını denetleyebilir.
+`composer validate --strict` ve `composer check-platform-reqs` çıkış 0. Bu bulut koşusundaki Composer lock içeriği korundu; lokal adayın kesin blob kimliği aşağıda kayıtlıdır. `composer audit --locked` çıkış 100, cURL 56. Packagist bağlantısı proxy CONNECT aşamasında 403 döndü, upstream HTTP kodu yok. Taslakta `packagist.org` ve `api.github.com` var. Çalışan örneğin etkin özel alan adı listesi boş. Cloud Environment ayarlarında taslağı inceleyip uygulayın ve HTTPS bağlantısının etkinleştiğini doğrulayın. Ürün sahibi, ağ erişimi olan ve PHP 8.5 ile Composer 2 içeren bir makinede şu komutlarla aynı kilit dosyasını denetleyebilir.
 
 ```sh
 git fetch origin refs/heads/feature/identity-v2-delivery
@@ -50,7 +50,7 @@ Eksik [HS Code kataloğu](../tests/Fixtures/Integration/hs-code/catalog.json) be
 | Database bootstrap ve admin erişimi | Yerini başka akışa bırakacak motor. `AuthenticationService::setup()` yok. Sağlayıcı geçişinde tek kullanımlık onboarding, idempotent bootstrap ve admin grant yokluğunda erişim reddi ayrı regresyonlar olarak korunacak. |
 | Database introspection | Fixture. 16 karakter altı girdi için doğrulama reddi ve yeterli uzunluktaki biçimsiz token için pasif sonucu ayrı ayrı sınanıyor. |
 | Database eski anahtar | Fixture. Test, önce overlap davranışını sınar, sonra PostgreSQL zaman damgası çözünürlüğünün ötesine ilerleyerek sıfır overlap politikasını sınar. Sağlayıcı geçişinde emekliye ayrılan anahtarın aktif JWKS dışında kalması ayrıca sınanacak. |
-| Advisory servisi ve snapshot | Ortam. Bulut ağ taslağının uygulanması ve bağımsız snapshot geri yükleme kanıtı bekleniyor. |
+| Advisory servisi ve snapshot | Ortam. Bulut audit CONNECT 403 olarak kalır; R1A lokal audit PASS. Bağımsız snapshot geri yükleme kanıtı bekleniyor. |
 
 Tam yürütme günlükleri bulut görevinde `/workspace/identity-cloud/evidence/r1-completion` altında.
 
@@ -60,3 +60,27 @@ Tam yürütme günlükleri bulut görevinde `/workspace/identity-cloud/evidence/
 | `sh tools.sh --verbose test database` | 1 | İzole PostgreSQL’de 57 test, 224 assertion, 2 başarısız, 0 atlanan. İkisi de eksik `AuthenticationService::setup()`. |
 | `php vendor/bin/pint --test` | 0 | 236 PHP dosyası. |
 | Ayrı stack kurulumu ve R0 PoC | 0 | Yeni vendor volume’a 109 paket kuruldu ve PoC tekrar geçti. |
+
+## Product Owner lokal kabul kanıtı — 27 Kasım 2026
+
+Ortam: Windows, Docker Desktop; Identity repository. Aşağıdaki sonuçlar Product Owner tarafından bildirilen terminal çıktılarıdır; bu dokümantasyon güncellemesinde yeniden yürütülmemiştir.
+
+- Test edilen aday: `fd9aebac2c019403f0fbdacb16fcf2f91075c865`.
+- `git hash-object composer.lock`: `a290239f134b03c81d25b1f124198b22fc1aea17`.
+- Kurulum ve testler sonrası `git rev-parse HEAD` ve lock blob hash eşleşti; `git status --short` boş.
+- `.\tools install`: SUCCESS (Product Owner bildirimi).
+- `composer audit --locked`: `No security vulnerability advisories found.` **R1A PASS** (lokal, bu lock dosyası ve denetim tarihi kapsamında).
+- Bulut audit sonucu ayrı tutulur: CONNECT 403, cURL 56, çıkış 100; bulut audit PASS değildir.
+
+### Lokal PostgreSQL regresyonu
+
+`.\tools test database --verbose`: PHP 8.5.11, PHPUnit 12.5.40, izole PostgreSQL; preflight PASS, Docker çıkış 1. 57 test, 55 başarılı, 224 assertion, 2 başarısız, 0 atlanan; 61.387 saniye. Bulut R1 sonuçlarıyla aynı iki başarısızlık:
+
+| Test | Sonuç |
+|---|---|
+| `IdentityCredentialLifecycleTest::test_bootstrap_is_idempotent_seeds_no_password_and_setup_activates_the_account` | HTTP 201 yerine 500 |
+| `IdentitySecurityRegressionTest::test_user_administration_requires_the_bootstrap_grant` | HTTP 201 yerine 500 |
+
+Ortak neden: `AuthenticationController.php:88`, tanımsız `AuthenticationService::setup()`. Bu bir gerçek uygulama regresyonudur; PostgreSQL/CLI hatası olarak sınıflandırılmaz. Database acceptance **FAIL**. Eski authentication motoruna yeni credential authority eklenmeyecek; R2 ve ilgili lifecycle/authorization aşamalarında idempotent bootstrap, tek kullanımlık aktivasyon, parola otoritesinin Keycloak'ta kalması, provisioning/reconciliation ve yetkisiz yönetim reddi için replacement regression kanıtı zorunludur. Mevcut başarısızlıklar gizlenmez, skip edilmez ve giderilmiş sayılmaz.
+
+R1B: [resmî PHP Template P4.5 PR #22](https://github.com/ulaxys-platform/ulaxys-be-php-template-service/pull/22) ayrı çalışma kapsamında; kabulü bu kayıtla verilmez. R1C kontrollü upgrade, P4.5 kabulü ve kaynak pin doğrulaması sonrasında yapılacaktır. R2–R9 beklemede; Identity PR #1 merge BLOCKED. Bu güncelleme yalnızca dokümantasyon kanıtıdır; uygulama, test, lockfile veya template değişikliği değildir.
