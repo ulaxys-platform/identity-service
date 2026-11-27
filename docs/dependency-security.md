@@ -41,3 +41,15 @@ Then commit the refreshed `composer.lock`. `composer.json` already permits the p
 ## Dependency policy for Identity V2 (I1)
 
 The original candidate added no Composer dependencies. This is not an accepted engine policy: maintained authentication dependencies are required if selected by I0. See `docs/review-remediation.md`. The token core uses PHP core `ext-openssl`, `password_hash` and `random_bytes` only, keeping the frozen install and this audit surface unchanged (ADR-0001). Planned I2 dependencies (Laravel Passport, WebAuthn and TOTP libraries) must each go through: lock refresh, `composer audit`, platform requirement check and the regression suite before merge.
+
+## Cloud R1 follow-up, 27 Kasım 2026
+
+Composer 2.10.3 on PHP 8.5.11 resolved the targeted update using Packagist package metadata. The locked HttpFoundation, HttpKernel, Mailer, Mime, Routing and VarDumper versions are now `8.1.12`. The solver also updated `egulias/email-validator` to `4.0.5`. Laravel, the package set and `composer.json` are unchanged.
+
+```sh
+composer update 'symfony/http-kernel:>=8.1.12' 'symfony/http-foundation:>=8.1.12' 'symfony/mailer:>=8.1.12' 'symfony/routing:>=8.1.12' --with-all-dependencies --no-install --no-interaction
+```
+
+The lockfile update and frozen installation both exited 0. The isolated Keycloak R0 suite passed again with the refreshed dependencies. A separate `composer audit --locked` exited 100 because the egress proxy rejected HTTPS CONNECT to `packagist.org` with 403. The standalone audit gate remains open. See [R0 runtime and baseline evidence](r0-technical-poc.md).
+
+The refreshed lock passed `composer validate --strict`, `composer check-platform-reqs`, `composer openapi` (24 operations) and the Keycloak realm PoC. The Foundation suite reproduced 167 tests with 1 error, 5 failures and 4 skips. The Database suite reproduced 57 tests with 10 failures. The full read-only Pint run reported 15 existing files with style findings. The integration generator still rejects the new actor-context middleware under its strict boundary. Those template and regression results remain open.

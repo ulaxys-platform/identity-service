@@ -51,14 +51,14 @@ Numaralar ilgili PHPUnit çıktısındaki hata veya başarısızlık numaraları
 | Başlangıç kapsamı | Gözlenen ortak neden veya belirti |
 |---|---|
 | Foundation hatalar 1–8 ve başarısızlıklar 6–19 | `JwtCodec::$issuer` çözümlenemedi. Bağlama sonrası 21 kayıt ortadan kalktı. Kalan generator vakası `/api/v1/actor/context` için “Unsupported resolved middleware” ile durdu. |
-| Foundation başarısızlıklar 1–3 | Mevcut codec için expiry, not-before ve issuer/audience ret beklentileri karşılanmadı. PoC imzalı tokenlarda expiry, issuer ve audience denetimini doğruladı. Mevcut regression testleri korunuyor. |
-| Foundation başarısızlıklar 4–5 | Türkçe lokalizasyon anahtarları uyuşmuyor ve kısa parola için beklenen politika anahtarı üretilmiyor. |
+| Foundation başarısızlıklar 1–3 | Test fixture’ındaki PHP dizi birleştirmesi (varsayılanlar + geçersiz değerler), varsayılan expiry, not-before ve issuer/audience değerlerini koruyor. Bu vakalar amaçlanan olumsuz tokenları üretmedi. PoC imzalı tokenlarda expiry, issuer ve audience denetimini doğruladı. Mevcut regression testleri korunuyor. |
+| Foundation başarısızlıklar 4–5 | Türkçe lokalizasyon anahtarları uyuşmuyor ve minimum 12 karakterken kısa parola fixture’ı tam 12 karakter gönderiyor. |
 | Database hatalar 1–5 ve başarısızlıklar 1–7, 9–21 | İstek veya rota çözümlemesi aynı `JwtCodec::$issuer` hatasını içeriyordu. Bağlama sonrası kalan sonuçlar aşağıda. |
 | Database başarısızlık 8 | Recovery yanıtları eşit olmadı. Bağlama sonrasında 200/429 ayrımı tekrarlandı. |
 
 | Database, bağlama sonrası | Gözlenen ortak neden veya belirti |
 |---|---|
-| 1, 6, 7, 9 | Logout, email verification, owner-scope oturum iptali ve introspection akışlarında beklenen yanıt yerine HTTP 400. Altta yatan nedenlerin aynı olduğu doğrulanmadı. |
+| 1, 6, 7, 9 | Logout, email verification, owner-scope oturum iptali ve introspection senaryolarındaki logout adımı, boş veriyle JSON yardımcılarını çağırıyor. Laravel gövdeyi `[]` olarak kodluyor ve `ValidateJsonBody` yalnızca JSON nesnesini kabul ediyor. |
 | 2, 3, 4 | Parola değişimi, recovery yanıt eşitliği ve reset akışında rate limit HTTP 429 döndürdü. |
 | 5, 8 | Controller, bulunmayan `AuthenticationService::setup()` metodunu çağırdı ve HTTP 500 döndü. |
 | 10 | Eski anahtarın overlap sonrasında reddedilmesi beklenirken HTTP 200 döndü. PoC yeni ve önceki anahtarın kontrollü overlap davranışını doğruladı. Anahtar emekliliği için mevcut regression beklentisi açık. |
