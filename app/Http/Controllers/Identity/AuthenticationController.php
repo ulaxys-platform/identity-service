@@ -12,6 +12,7 @@ use Ulaxys\Identity\Http\Requests\Identity\AccountSetupRequest;
 use Ulaxys\Identity\Http\Requests\Identity\LoginRequest;
 use Ulaxys\Identity\Http\Requests\Identity\RefreshTokenRequest;
 use Ulaxys\Identity\Services\Identity\AuthenticationService;
+use Ulaxys\Identity\Services\Identity\CredentialService;
 
 final class AuthenticationController extends Controller
 {
@@ -82,10 +83,10 @@ final class AuthenticationController extends Controller
             new OA\Response(response: 429, description: 'Rate limited', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
         ],
     )]
-    public function setup(AccountSetupRequest $request): JsonResponse
+    public function setup(AccountSetupRequest $request, CredentialService $credentials): JsonResponse
     {
         $data = $request->validated();
-        $response = $this->service->setup((string) $data['token'], (string) $data['newPassword']);
+        $response = $credentials->setupAccount((string) $data['token'], (string) $data['newPassword']);
 
         return response()->json($response->toArray(), $response->getStatus());
     }
