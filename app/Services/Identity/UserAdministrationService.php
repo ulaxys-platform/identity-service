@@ -64,11 +64,11 @@ final class UserAdministrationService
                 $user = $this->users->createWithProfile(
                     ['status' => User::STATUS_INVITED, 'type' => User::TYPE_HUMAN, 'created_by' => (string) $actor->id],
                     [
-                        'display_name' => (string) $data['display_name'],
-                        'first_name' => $data['first_name'] ?? null,
-                        'last_name' => $data['last_name'] ?? null,
-                        'preferred_language' => (string) ($data['preferred_language'] ?? 'en'),
-                        'preferred_timezone' => (string) ($data['preferred_timezone'] ?? 'UTC'),
+                        'display_name' => (string) $data['displayName'],
+                        'first_name' => $data['firstName'] ?? null,
+                        'last_name' => $data['lastName'] ?? null,
+                        'preferred_language' => (string) ($data['preferredLanguage'] ?? 'en'),
+                        'preferred_timezone' => (string) ($data['preferredTimezone'] ?? 'UTC'),
                     ],
                 );
                 $this->identifiers->createForUser((string) $user->id, $kind, $identifier, false);

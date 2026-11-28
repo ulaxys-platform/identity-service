@@ -132,6 +132,11 @@ final class IdentityCredentialLifecycleTest extends TestCase
             ->postJson('/api/v1/auth/setup', ['token' => (string) $first['token'], 'newPassword' => 's3ntence-Staple-Calm-9'])
             ->assertStatus(201);
         $this->loginJson('ops@ulaxys.test', 's3ntence-Staple-Calm-9')->assertOk();
+        // The immediate replay is throttled; after the window, token reuse must still fail.
+        $this->withHeader('Signature', $this->signature())
+            ->postJson('/api/v1/auth/setup', ['token' => (string) $first['token'], 'newPassword' => 'another-Str0ng-Pass'])
+            ->assertStatus(429);
+        $this->travel(61)->seconds();
         $this->withHeader('Signature', $this->signature())
             ->postJson('/api/v1/auth/setup', ['token' => (string) $first['token'], 'newPassword' => 'another-Str0ng-Pass'])
             ->assertStatus(400);

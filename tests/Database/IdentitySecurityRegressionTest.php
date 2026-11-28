@@ -82,7 +82,10 @@ final class IdentitySecurityRegressionTest extends TestCase
         $this->withHeaders($this->bearer((string) $admin->json('tokens.accessToken')))
             ->postJson('/api/v1/admin/users', ['identifier' => 'invited@ulaxys.test', 'kind' => 'email', 'displayName' => 'Invited User'])
             ->assertStatus(201)
-            ->assertJsonPath('items.status', 'invited');
+            ->assertJsonPath('items.status', 'invited')
+            ->assertJsonPath('items.displayName', 'Invited User')
+            ->assertJsonPath('items.preferredLanguage', 'en')
+            ->assertJsonPath('items.preferredTimezone', 'UTC');
         $this->withHeaders($this->bearer((string) $admin->json('tokens.accessToken')))
             ->postJson('/api/v1/admin/users', ['identifier' => 'invited@ulaxys.test', 'kind' => 'email', 'displayName' => 'Duplicate'])
             ->assertStatus(409);
