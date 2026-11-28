@@ -5,12 +5,14 @@
 Status: MERGE BLOCKED. Reviewed candidate 3ce0fe0d0515d135a3f975bf1d84098bb47880fd. No production approval.
 
 ## Ownership and engine
+
 - Identity owns platform ULID/profile/lifecycle/mapping; Keycloak owns credentials, sessions, federation, assurance and machine authentication.
 - Separate Access Management ownership boundary for roles, permissions, scoped grants and delegation. Do not implement organization/department master data or a broad IAM subsystem here. Organization/department authority remains open. Central ulaxys-docs decisions govern.
 - Keep Business Partner commercial accounts independent; Reference owns reference data and Foundation owns numbering. Gateway owns traffic and verified actor propagation; resource services enforce resource-specific decisions.
 - R0 engine ACCEPTED: Keycloak. PoC and replacement implementation pending; see docs/r0-approved-architecture.md.
 
 ## Security disposition
+
 - IDV2-001: candidate patch serializes refresh rotation per session and conditionally consumes tokens; rotation failure rolls back and replay revocation commits before denial. Real concurrent PostgreSQL regression required, including revoke/refresh and signing failure.
 - IDV2-002: architecture decision resolved; replacement implementation and acceptance pending.
 - IDV2-003: targeted Composer lock update and clean audit pending actual Composer runtime. Never suppress advisories.
@@ -20,7 +22,9 @@ Status: MERGE BLOCKED. Reviewed candidate 3ce0fe0d0515d135a3f975bf1d84098bb47880
 - Additional: introspection now checks audience, subject/session ownership and current user eligibility; revoke and unavailable-key response paths corrected. Regression tests added (not executed). Normalized identifier throttling and production rejection of plaintext delivery driver candidate patches. Verify IP/account-wide limits, distributed cache and no secret logging.
 
 ## Acceptance
+
 GitHub Actions usage quota reported exhausted by Product Owner. CI must remain enabled and unchanged; quota is not a test pass. Independently execute the following on the exact PR HEAD with disposable infrastructure:
+
 1. Verify generation provenance, inspect expected consumer deviations, and compare workflow with official template.
 2. Run targeted compatible Composer dependency updates and commit lockfile; run composer validate --strict, composer audit and platform requirements.
 3. Run .\tools install, .\tools verify, .\tools smoke (PowerShell) and equivalent documented foundation/database/OpenAPI/integration gates. Record commands, exit codes, skips, environment and SHA; no secrets.
@@ -31,6 +35,7 @@ GitHub Actions usage quota reported exhausted by Product Owner. CI must remain e
 No PHPUnit, Composer audit, PHP 8.5 or Docker execution is claimed by this remediation.
 
 ## Second review (1549e3e)
+
 - IDV2-007: camelCase/snake_case mapping mismatch.
 - IDV2-008: invited user activation missing.
 - IDV2-009: OpenAPI security OR vs middleware AND.
@@ -41,4 +46,4 @@ No PHPUnit, Composer audit, PHP 8.5 or Docker execution is claimed by this remed
 - IDV2-014: setup state transitions and stale reset challenge invalidation.
 - IDV2-015: audit transaction and DB immutability gaps.
 - IDV2-016: owner session count test inconsistency and unexecuted tests.
-All findings require fix or justified removal with replacement tests. No runtime acceptance in documentation update.
+  All findings require fix or justified removal with replacement tests. No runtime acceptance in documentation update.

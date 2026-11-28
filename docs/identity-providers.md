@@ -4,7 +4,7 @@ Status: DEFERRED to I2. Real Google/Microsoft acceptance will be NOT VERIFIED un
 
 ## Pre-drawn design (must be preserved when implementing)
 
-- Provider registry with trusted issuer allowlist, client IDs, secret *references* (never secrets in DB), discovery metadata caching, approved authorization/token endpoints and exact redirect-URI matching.
+- Provider registry with trusted issuer allowlist, client IDs, secret _references_ (never secrets in DB), discovery metadata caching, approved authorization/token endpoints and exact redirect-URI matching.
 - State + nonce + PKCE on every browser flow; ID-token validation against the provider's JWKS with strict issuer/audience; replayed authentication responses rejected via nonce/state single-use storage.
 - Uniqueness of external identities keyed by (verified provider issuer, provider subject) — never by email. Two providers returning the same email never auto-link accounts; linking requires an authenticated, explicit flow.
 - Provider access tokens are never treated as uLaxys access tokens.

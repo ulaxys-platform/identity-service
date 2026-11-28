@@ -49,11 +49,11 @@ Disposition: left unchanged. They are read-only, opt-in, and document their own 
 
 Verified against the public ecosystem during this unit (Symfony blog posts for 5.4.57/6.4.51/7.4.24/8.1.12 and the 8.1.12 release note dated November 25, 2026; CVE-2026-133743 for HttpKernel and related 8.1.12 advisories):
 
-| Package | Locked version | Patched boundary | Status |
-| --- | --- | --- | --- |
-| `symfony/http-kernel` | v8.1.11 | >= 8.1.12 (CVE-2026-133743 and related) | AFFECTED |
-| `symfony/mailer` | v8.1.10 | >= 8.1.12 | AFFECTED |
-| `symfony/routing` | v8.1.11 | >= 8.1.12 | AFFECTED |
+| Package               | Locked version | Patched boundary                        | Status   |
+| --------------------- | -------------- | --------------------------------------- | -------- |
+| `symfony/http-kernel` | v8.1.11        | >= 8.1.12 (CVE-2026-133743 and related) | AFFECTED |
+| `symfony/mailer`      | v8.1.10        | >= 8.1.12                               | AFFECTED |
+| `symfony/routing`     | v8.1.11        | >= 8.1.12                               | AFFECTED |
 
 The patched-boundary claim matches the ecosystem evidence found. Full details, exact commands and the honest status of the lockfile update are documented in `docs/dependency-security.md`.
 

@@ -20,9 +20,19 @@ Access tokens are RS256 JWTs. The Gateway validates locally or introspects:
 `GET /api/v1/actor/context` (Bearer + Signature) returns:
 
 ```json
-{"size":1,"status":200,"message":"OK","items":{
-  "actorId":"opaque-ulid","actorType":"user","sessionId":"opaque-ulid",
-  "organizationId":null,"authenticationMethods":["password"],"authorizationVersion":1}}
+{
+  "size": 1,
+  "status": 200,
+  "message": "OK",
+  "items": {
+    "actorId": "opaque-ulid",
+    "actorType": "user",
+    "sessionId": "opaque-ulid",
+    "organizationId": null,
+    "authenticationMethods": ["password"],
+    "authorizationVersion": 1
+  }
+}
 ```
 
 `authorizationVersion` is opaque and bumped on contract changes. `organizationId` is reserved for I3 and always null in I1. Errors: 401 invalid/missing token, 403 missing signature, 503 signing-key dependency unavailable.

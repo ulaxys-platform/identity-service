@@ -26,13 +26,13 @@ For I2 the selected engine is **Laravel Passport (league/oauth2-server)** as the
 
 ## Alternatives considered
 
-| Option | Assessment |
-| --- | --- |
-| Laravel Passport immediately | Strong OAuth2 base (league/oauth2-server), but cannot be installed, locked or audited in this environment; would force simulated, untested claims. Deferred to I2 with documented commands. |
-| laravel/sanctum | SPA/mobile token convenience, not an authorization server; no JWKS/introspection/revocation contract for hundreds of services. Rejected. |
+| Option                                                  | Assessment                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Laravel Passport immediately                            | Strong OAuth2 base (league/oauth2-server), but cannot be installed, locked or audited in this environment; would force simulated, untested claims. Deferred to I2 with documented commands.                                                                                                             |
+| laravel/sanctum                                         | SPA/mobile token convenience, not an authorization server; no JWKS/introspection/revocation contract for hundreds of services. Rejected.                                                                                                                                                                |
 | External identity infrastructure (Keycloak, Ory, Auth0) | Materially improves protocol compliance but adds an independent runtime the platform must operate, conflicts with the mandate to preserve Laravel as the Identity foundation, and cannot be deployed or verified here. Rejected for now; federation **to** external OIDC providers stays in scope (I2). |
-| firebase/php-jwt or web-token/jwt-framework | Maintained JWT libraries; would require Composer lock changes impossible in this environment. Candidates for I2 consolidation; the I1 codec is intentionally small (RS256 only, strict claim validation) to lower migration cost. |
-| Custom OAuth/OIDC protocol implementation | Forbidden by the task brief. Not done; the I1 token core implements no protocol grants beyond first-party session refresh. |
+| firebase/php-jwt or web-token/jwt-framework             | Maintained JWT libraries; would require Composer lock changes impossible in this environment. Candidates for I2 consolidation; the I1 codec is intentionally small (RS256 only, strict claim validation) to lower migration cost.                                                                       |
+| Custom OAuth/OIDC protocol implementation               | Forbidden by the task brief. Not done; the I1 token core implements no protocol grants beyond first-party session refresh.                                                                                                                                                                              |
 
 ## Consequences
 

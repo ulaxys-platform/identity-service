@@ -14,12 +14,12 @@ The stated patched boundaries (Symfony 7.4.24 and 8.1.12) are therefore confirme
 
 ## Affected packages in the actual lockfile
 
-| Package | Locked | Boundary | Verdict |
-| --- | --- | --- | --- |
-| symfony/http-kernel | v8.1.11 | >= 8.1.12 | AFFECTED |
-| symfony/mailer | v8.1.10 | >= 8.1.12 | AFFECTED |
-| symfony/routing | v8.1.11 | >= 8.1.12 | AFFECTED |
-| laravel/framework | v13.43.0 | not reported affected | OK |
+| Package             | Locked   | Boundary              | Verdict  |
+| ------------------- | -------- | --------------------- | -------- |
+| symfony/http-kernel | v8.1.11  | >= 8.1.12             | AFFECTED |
+| symfony/mailer      | v8.1.10  | >= 8.1.12             | AFFECTED |
+| symfony/routing     | v8.1.11  | >= 8.1.12             | AFFECTED |
+| laravel/framework   | v13.43.0 | not reported affected | OK       |
 
 Other `symfony/*` components in the lock (console 8.1.11, error-handler 8.1.10, http-foundation 8.1.11, mime 8.1.10, process 8.1.10, string 8.1.10, translation 8.1.11, yaml 8.1.11, etc.) are also below 8.1.12; a targeted update of the three reported packages plus their shared dependencies brings the affected set forward without unrelated major-version jumps.
 

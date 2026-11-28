@@ -30,7 +30,7 @@ I1: PHP core (`ext-openssl`, `password_hash`, `random_bytes`) + Laravel Hash/Rat
 
 ## 6. Deferred modules
 
-ExternalIdentities/IdentityProviders, MFA, Passkeys, RecoveryCodes, RiskControls, Organizations/Departments/Memberships, full RBAC (roles/permissions/catalogs/scopes/assignments), AuthorizationDecisions engine, Invitations, Delegation, ServicePrincipals/OAuthClients/MachineCredentials, ServicePermissionImport, batch authorization, distributed coordination. All carry pre-drawn designs in docs/* and are **DEFERRED**, never simulated.
+ExternalIdentities/IdentityProviders, MFA, Passkeys, RecoveryCodes, RiskControls, Organizations/Departments/Memberships, full RBAC (roles/permissions/catalogs/scopes/assignments), AuthorizationDecisions engine, Invitations, Delegation, ServicePrincipals/OAuthClients/MachineCredentials, ServicePermissionImport, batch authorization, distributed coordination. All carry pre-drawn designs in docs/\* and are **DEFERRED**, never simulated.
 
 ## 7. Database schema and migrations
 

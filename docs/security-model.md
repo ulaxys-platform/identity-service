@@ -2,7 +2,7 @@
 
 ## Trust boundaries
 
-- The static `Signature` header proves possession of a shared service secret. It authenticates *service transport*, not end-user identity or permission — this limitation is inherited from the template and stated honestly (docs/gateway-integration.md). mTLS/workload identity compatibility is a design goal, not yet implemented.
+- The static `Signature` header proves possession of a shared service secret. It authenticates _service transport_, not end-user identity or permission — this limitation is inherited from the template and stated honestly (docs/gateway-integration.md). mTLS/workload identity compatibility is a design goal, not yet implemented.
 - End-user identity comes exclusively from a verified RS256 access token bound to a live session. Caller-supplied headers (`X-Actor-*`, `X-User-*`) are never trusted and are covered by a regression test.
 - Deny-by-default everywhere: missing/invalid tokens 401, insufficient grant 403, dependency failure 503, rate limit 429; 406 is never used for forbidden access.
 

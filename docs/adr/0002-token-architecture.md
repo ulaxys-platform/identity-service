@@ -23,7 +23,7 @@ Access tokens must be validated by the API Gateway and hundreds of backend servi
 
 **Validation**: only RS256; `kid` must match a published key; the signature is verified with `openssl_verify`; `exp`/`nbf` are checked with a bounded 30-second clock skew; `iss` and `aud` are checked exactly. Unsigned JWTs are structurally impossible to accept.
 
-**Revocation endpoints** (Signature-gated, internal): RFC 7662 introspection returns the claim set with `active` reflecting token validity *and* session validity; RFC 7009-style revoke revokes the session and its refresh family.
+**Revocation endpoints** (Signature-gated, internal): RFC 7662 introspection returns the claim set with `active` reflecting token validity _and_ session validity; RFC 7009-style revoke revokes the session and its refresh family.
 
 Key material lives in `IDENTITY_KEYS_PATH` (mounted from a secret manager in production, never committed); `identity_signing_keys` holds metadata (`kid`, paths, active/retired state). JWKS publishes active plus recently retired keys for rotation overlap. Rotation is performed by `identity:keys:generate --rotate` during a maintenance window; emergency invalidation is documented in docs/token-lifecycle.md.
 

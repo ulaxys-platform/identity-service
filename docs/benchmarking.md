@@ -4,11 +4,11 @@ Status: NOT VERIFIED — no benchmark results are claimed. The full benchmark ca
 
 ## Datasets (deterministic, synthetic)
 
-| Scenario | Services | Permission definitions | Users | Sessions |
-| --- | --- | --- | --- | --- |
-| Small | 10 | 500 | 1,000 | 2,000 |
-| Medium | 100 | 5,000 | 10,000 | 20,000 |
-| Large | 500 | 25,000 | 100,000 | 200,000 |
+| Scenario | Services | Permission definitions | Users   | Sessions |
+| -------- | -------- | ---------------------- | ------- | -------- |
+| Small    | 10       | 500                    | 1,000   | 2,000    |
+| Medium   | 100      | 5,000                  | 10,000  | 20,000   |
+| Large    | 500      | 25,000                 | 100,000 | 200,000  |
 
 Generator: `scripts/benchmark/generate-dataset.php` (I5 deliverable) producing deterministic ULID-prefixed rows inside a transaction batch; identities only, no commercial records.
 

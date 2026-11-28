@@ -2,20 +2,20 @@
 
 PostgreSQL only (template mandate). Migrations run in explicit order under `database/migrations/`:
 
-| Table | Purpose | Notable constraints |
-| --- | --- | --- |
-| identity_users | authentication identity root | ULID PK; status/type |
-| identity_user_profiles | display names, locale, timezone | unique user_id, FK cascade |
-| identity_login_identifiers | email/username login identifiers | unique (kind, normalized); FK cascade |
-| identity_password_credentials | Argon2id hashes | unique user_id; hidden hash |
-| identity_identifier_verifications | hashed email verification tokens | unique token_hash |
-| identity_credential_challenges | hashed reset/setup tokens | unique token_hash; purpose index |
-| identity_auth_sessions | first-class sessions | user+revoked index; expires index |
-| identity_refresh_tokens | rotation families | unique token_hash; family/session indexes |
-| identity_platform_administrators | interim admin grant | unique user_id |
-| identity_signing_keys | key metadata | unique kid |
-| identity_audit_events | append-only audit | action+time, actor, subject indexes |
-| identity_security_events | append-only security | event/user/session/time indexes |
+| Table                             | Purpose                          | Notable constraints                       |
+| --------------------------------- | -------------------------------- | ----------------------------------------- |
+| identity_users                    | authentication identity root     | ULID PK; status/type                      |
+| identity_user_profiles            | display names, locale, timezone  | unique user_id, FK cascade                |
+| identity_login_identifiers        | email/username login identifiers | unique (kind, normalized); FK cascade     |
+| identity_password_credentials     | Argon2id hashes                  | unique user_id; hidden hash               |
+| identity_identifier_verifications | hashed email verification tokens | unique token_hash                         |
+| identity_credential_challenges    | hashed reset/setup tokens        | unique token_hash; purpose index          |
+| identity_auth_sessions            | first-class sessions             | user+revoked index; expires index         |
+| identity_refresh_tokens           | rotation families                | unique token_hash; family/session indexes |
+| identity_platform_administrators  | interim admin grant              | unique user_id                            |
+| identity_signing_keys             | key metadata                     | unique kid                                |
+| identity_audit_events             | append-only audit                | action+time, actor, subject indexes       |
+| identity_security_events          | append-only security             | event/user/session/time indexes           |
 
 ## Transactional operations
 

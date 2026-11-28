@@ -38,28 +38,28 @@ Eksik [HS Code kataloğu](../tests/Fixtures/Integration/hs-code/catalog.json) be
 
 ## Önceki başarısızlıkların disposition’ı
 
-| Vaka | Sınıf ve işlem |
-|---|---|
-| Foundation integration generator | Template. Aktör middleware sözleşmesi yukarıdaki nedenle açık. |
-| Foundation JWT expiry, not-before, issuer/audience | Fixture. Dizi override’ları artık geçersiz claim’leri gerçekten üretiyor. Sağlayıcı geçişinde zaman, issuer, audience ve imza denetiminin regression kapsamı korunacak. |
-| Foundation localization | Fixture. Test çevrilmiş metinler yerine anahtarları karşılaştırıyor. Ayrı test tüm çevirilerin boş olmamasını kontrol ediyor. |
-| Foundation kısa parola | Fixture. Örnek 12 karakterlik asgari sınırın altında. Sağlayıcı geçişinde realm parola politikası karşılaştırılacak. |
-| Database logout | JSON fixture artık nesne gövdesi gönderiyor. Mevcut logout çağrısında hatalı AuthSession tür referansı düzeltildi. Sağlayıcı geçişinde introspection logout sonrasında pasif olmalı. |
-| Database parola değiştirme, recovery enumeration, reset ve email verification | Fixture. Test saati normal rate-limit penceresini ilerletir, sınırlar etkin kalır. Email başlangıcı nesne gövdesi gönderir. Sağlayıcı geçişinde genel recovery mesajı, challenge tek kullanımı ve oturumların iptali ayrıca doğrulanacak. |
-| Database owner-scoped iptal | Fixture. DELETE isteği nesne gövdesi gönderiyor. Başkasının oturumuna 404 ve sahibin listesinde yalnızca kendi oturum kimliği bekleniyor. |
-| Database bootstrap ve admin erişimi | Yerini başka akışa bırakacak motor. `AuthenticationService::setup()` yok. Sağlayıcı geçişinde tek kullanımlık onboarding, idempotent bootstrap ve admin grant yokluğunda erişim reddi ayrı regresyonlar olarak korunacak. |
-| Database introspection | Fixture. 16 karakter altı girdi için doğrulama reddi ve yeterli uzunluktaki biçimsiz token için pasif sonucu ayrı ayrı sınanıyor. |
-| Database eski anahtar | Fixture. Test, önce overlap davranışını sınar, sonra PostgreSQL zaman damgası çözünürlüğünün ötesine ilerleyerek sıfır overlap politikasını sınar. Sağlayıcı geçişinde emekliye ayrılan anahtarın aktif JWKS dışında kalması ayrıca sınanacak. |
-| Advisory servisi ve snapshot | Ortam. Bulut audit CONNECT 403 olarak kalır; R1A lokal audit PASS. Bağımsız snapshot geri yükleme kanıtı bekleniyor. |
+| Vaka                                                                          | Sınıf ve işlem                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Foundation integration generator                                              | Template. Aktör middleware sözleşmesi yukarıdaki nedenle açık.                                                                                                                                                                                 |
+| Foundation JWT expiry, not-before, issuer/audience                            | Fixture. Dizi override’ları artık geçersiz claim’leri gerçekten üretiyor. Sağlayıcı geçişinde zaman, issuer, audience ve imza denetiminin regression kapsamı korunacak.                                                                        |
+| Foundation localization                                                       | Fixture. Test çevrilmiş metinler yerine anahtarları karşılaştırıyor. Ayrı test tüm çevirilerin boş olmamasını kontrol ediyor.                                                                                                                  |
+| Foundation kısa parola                                                        | Fixture. Örnek 12 karakterlik asgari sınırın altında. Sağlayıcı geçişinde realm parola politikası karşılaştırılacak.                                                                                                                           |
+| Database logout                                                               | JSON fixture artık nesne gövdesi gönderiyor. Mevcut logout çağrısında hatalı AuthSession tür referansı düzeltildi. Sağlayıcı geçişinde introspection logout sonrasında pasif olmalı.                                                           |
+| Database parola değiştirme, recovery enumeration, reset ve email verification | Fixture. Test saati normal rate-limit penceresini ilerletir, sınırlar etkin kalır. Email başlangıcı nesne gövdesi gönderir. Sağlayıcı geçişinde genel recovery mesajı, challenge tek kullanımı ve oturumların iptali ayrıca doğrulanacak.      |
+| Database owner-scoped iptal                                                   | Fixture. DELETE isteği nesne gövdesi gönderiyor. Başkasının oturumuna 404 ve sahibin listesinde yalnızca kendi oturum kimliği bekleniyor.                                                                                                      |
+| Database bootstrap ve admin erişimi                                           | Yerini başka akışa bırakacak motor. `AuthenticationService::setup()` yok. Sağlayıcı geçişinde tek kullanımlık onboarding, idempotent bootstrap ve admin grant yokluğunda erişim reddi ayrı regresyonlar olarak korunacak.                      |
+| Database introspection                                                        | Fixture. 16 karakter altı girdi için doğrulama reddi ve yeterli uzunluktaki biçimsiz token için pasif sonucu ayrı ayrı sınanıyor.                                                                                                              |
+| Database eski anahtar                                                         | Fixture. Test, önce overlap davranışını sınar, sonra PostgreSQL zaman damgası çözünürlüğünün ötesine ilerleyerek sıfır overlap politikasını sınar. Sağlayıcı geçişinde emekliye ayrılan anahtarın aktif JWKS dışında kalması ayrıca sınanacak. |
+| Advisory servisi ve snapshot                                                  | Ortam. Bulut audit CONNECT 403 olarak kalır; R1A lokal audit PASS. Bağımsız snapshot geri yükleme kanıtı bekleniyor.                                                                                                                           |
 
 Tam yürütme günlükleri bulut görevinde `/workspace/identity-cloud/evidence/r1-completion` altında.
 
-| Son koşu | Çıkış | Kanıt |
-|---|---:|---|
-| Foundation, HS Code ve Inventory referansları bağlı | 2 | 167 test, 4.291 assertion, 1 generator hatası, 1 HS Code engine parity başarısızlığı, 0 atlanan. |
-| `sh tools.sh --verbose test database` | 1 | İzole PostgreSQL’de 57 test, 224 assertion, 2 başarısız, 0 atlanan. İkisi de eksik `AuthenticationService::setup()`. |
-| `php vendor/bin/pint --test` | 0 | 236 PHP dosyası. |
-| Ayrı stack kurulumu ve R0 PoC | 0 | Yeni vendor volume’a 109 paket kuruldu ve PoC tekrar geçti. |
+| Son koşu                                            | Çıkış | Kanıt                                                                                                                |
+| --------------------------------------------------- | ----: | -------------------------------------------------------------------------------------------------------------------- |
+| Foundation, HS Code ve Inventory referansları bağlı |     2 | 167 test, 4.291 assertion, 1 generator hatası, 1 HS Code engine parity başarısızlığı, 0 atlanan.                     |
+| `sh tools.sh --verbose test database`               |     1 | İzole PostgreSQL’de 57 test, 224 assertion, 2 başarısız, 0 atlanan. İkisi de eksik `AuthenticationService::setup()`. |
+| `php vendor/bin/pint --test`                        |     0 | 236 PHP dosyası.                                                                                                     |
+| Ayrı stack kurulumu ve R0 PoC                       |     0 | Yeni vendor volume’a 109 paket kuruldu ve PoC tekrar geçti.                                                          |
 
 ## Product Owner lokal kabul kanıtı — 27 Kasım 2026
 
@@ -76,10 +76,10 @@ Ortam: Windows, Docker Desktop; Identity repository. Aşağıdaki sonuçlar Prod
 
 `.\tools test database --verbose`: PHP 8.5.11, PHPUnit 12.5.40, izole PostgreSQL; preflight PASS, Docker çıkış 1. 57 test, 55 başarılı, 224 assertion, 2 başarısız, 0 atlanan; 61.387 saniye. Bulut R1 sonuçlarıyla aynı iki başarısızlık:
 
-| Test | Sonuç |
-|---|---|
+| Test                                                                                                              | Sonuç               |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------- |
 | `IdentityCredentialLifecycleTest::test_bootstrap_is_idempotent_seeds_no_password_and_setup_activates_the_account` | HTTP 201 yerine 500 |
-| `IdentitySecurityRegressionTest::test_user_administration_requires_the_bootstrap_grant` | HTTP 201 yerine 500 |
+| `IdentitySecurityRegressionTest::test_user_administration_requires_the_bootstrap_grant`                           | HTTP 201 yerine 500 |
 
 Ortak neden: `AuthenticationController.php:88`, tanımsız `AuthenticationService::setup()`. Bu bir gerçek uygulama regresyonudur; PostgreSQL/CLI hatası olarak sınıflandırılmaz. Database acceptance **FAIL**. Eski authentication motoruna yeni credential authority eklenmeyecek; R2 ve ilgili lifecycle/authorization aşamalarında idempotent bootstrap, tek kullanımlık aktivasyon, parola otoritesinin Keycloak'ta kalması, provisioning/reconciliation ve yetkisiz yönetim reddi için replacement regression kanıtı zorunludur. Mevcut başarısızlıklar gizlenmez, skip edilmez ve giderilmiş sayılmaz.
 
