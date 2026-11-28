@@ -11,6 +11,7 @@
         "ext-pdo": "*",
         "ext-pdo_pgsql": "*",
         "darkaonline/l5-swagger": "^11.2",
+        "firebase/php-jwt": "^7.0",
         "laravel/framework": "^13.0"
     },
     "require-dev": {

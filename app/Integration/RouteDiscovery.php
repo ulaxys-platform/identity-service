@@ -25,7 +25,7 @@ final class RouteDiscovery
         '[\\da-fA-F]{8}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{12}',
     ];
 
-    public function collect(Router $router): array
+    public function collect(Router $router, array $config = []): array
     {
         // Apply Laravel 13 HTTP middleware aliases/groups without handling a request.
         app()->make(Kernel::class);
@@ -55,7 +55,10 @@ final class RouteDiscovery
                 throw new IntegrationException('Excluded middleware is unsupported: '.$uri);
             }
             $resolvedMiddleware = $router->gatherRouteMiddleware($route);
-            if (array_diff($resolvedMiddleware, [
+            $security = SecurityContract::forRoute($config, $route->getName());
+            if ($security !== null) {
+                SecurityContract::matchRoute($security, $middleware, $resolvedMiddleware, $uri);
+            } elseif (array_diff($resolvedMiddleware, [
                 SubstituteBindings::class,
                 VerifyServiceSignature::class,
                 ValidateJsonBody::class,
@@ -75,7 +78,7 @@ final class RouteDiscovery
             if (array_diff($methods, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'TRACE'])) {
                 throw new IntegrationException('Unsupported HTTP method on '.$uri);
             }
-            if (! in_array('api', $middleware, true) || array_diff($middleware, ['api', 'service.signature', 'json.body', 'lang'])) {
+            if (! in_array('api', $middleware, true) || ($security === null && array_diff($middleware, ['api', 'service.signature', 'json.body', 'lang']))) {
                 throw new IntegrationException('Unsupported API boundary/middleware on '.$uri.'; no middleware semantics are inferred.');
             }
             $name = $route->getName();
@@ -118,7 +121,7 @@ final class RouteDiscovery
                 }
             }
             $operations[] = ['methods' => $methods, 'uri' => $uri, 'name' => $name,
-                'action' => $route->getActionName(), 'middleware' => $middleware, 'resolvedMiddleware' => $resolvedMiddleware, 'requiresSignature' => $requiresSignature, 'parameters' => $parameters];
+                'action' => $route->getActionName(), 'middleware' => $middleware, 'resolvedMiddleware' => $resolvedMiddleware, 'requiresSignature' => $requiresSignature, 'parameters' => $parameters, ...($security === null ? [] : ['securityMiddleware' => $security])];
         }
 
         return ['routes' => $operations, 'excluded' => $excluded];

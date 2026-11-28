@@ -468,9 +468,15 @@ final class IntegrationGeneratorTest extends TestCase
 
     public function test_fresh_artisan_process_observes_real_routes_without_changing_http_registry_or_openapi(): void
     {
-        $process = new Process([PHP_BINARY, 'artisan', 'ulaxys:generate-integration', '--strict', '--dry-run', '--output='.$this->bundle], base_path());
+        $native = new Process([PHP_BINARY, 'artisan', 'ulaxys:generate-integration', '--strict', '--dry-run', '--output='.$this->bundle], base_path());
+        $native->run();
+        $this->assertSame(1, $native->getExitCode());
+        $this->assertStringContainsString('Security contract v2 has no verified native Gateway target', $native->getOutput());
+        $this->assertDirectoryDoesNotExist($this->destination);
+
+        $process = new Process([PHP_BINARY, 'artisan', 'ulaxys:generate-integration', '--all', '--strict', '--dry-run', '--gateway-format=json', '--permission-format=json', '--output='.$this->bundle], base_path());
         $process->mustRun();
-        $this->assertStringContainsString('MainGate installation requires runtime verification', $process->getOutput());
+        $this->assertStringContainsString('Security contract v2 review only: no executable Gateway, Identity or Deploy output', $process->getOutput());
         $this->assertDirectoryDoesNotExist($this->destination);
         $this->artisan('l5-swagger:generate')->assertSuccessful();
         $gate = new Process([PHP_BINARY, '.docker/verify-openapi.php'], base_path());

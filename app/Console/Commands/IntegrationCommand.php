@@ -14,6 +14,7 @@ use Ulaxys\Identity\Integration\OutputWriter;
 use Ulaxys\Identity\Integration\PermissionDeclarationGenerator;
 use Ulaxys\Identity\Integration\PermissionMapper;
 use Ulaxys\Identity\Integration\RouteDiscovery;
+use Ulaxys\Identity\Integration\SecurityReviewRenderer;
 
 abstract class IntegrationCommand extends Command
 {
@@ -39,7 +40,29 @@ abstract class IntegrationCommand extends Command
                 }
             }
             $config = $metadata->validate(config('integration', []));
-            $snapshot = $mapper->map($discovery->collect($router), $config, (bool) $this->option('strict'));
+            $snapshot = $mapper->map($discovery->collect($router, $config), $config, (bool) $this->option('strict'));
+            if ($config['schemaVersion'] === 2) {
+                if (in_array('gateway', $targets, true) && $this->option('gateway-format') !== 'json') {
+                    throw new IntegrationException('Security contract v2 has no verified native Gateway target; select --gateway-format=json for review-only output.');
+                }
+                if (in_array('permissions', $targets, true) && ! in_array($this->option('permission-format'), ['auto', 'json'], true)) {
+                    throw new IntegrationException('Security contract v2 has no verified native Identity target; select --permission-format=json.');
+                }
+                if ((string) $this->option('output') === 'bundle') {
+                    throw new IntegrationException('Security contract v2 requires a separate explicit --output review directory.');
+                }
+                $files = (new SecurityReviewRenderer)->generate($snapshot, $targets);
+                $changes = $writer->apply($files, (string) $this->option('output'), (bool) $this->option('dry-run'), (bool) $this->option('check'));
+                foreach ($changes as $path => $status) {
+                    $this->line($status.' '.$path);
+                }
+                foreach ($snapshot['warnings'] as $warning) {
+                    $this->warn($warning);
+                }
+                $this->warn('Security contract v2 review only: no executable Gateway, Identity or Deploy output; downstream support not verified.');
+
+                return $this->option('check') && array_filter($changes, fn ($status) => $status !== 'unchanged') ? self::FAILURE : self::SUCCESS;
+            }
             $files = [];
             if (in_array('gateway', $targets, true)) {
                 $format = $this->option('gateway-format');

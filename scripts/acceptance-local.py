@@ -6,6 +6,7 @@ import argparse
 import base64
 import hashlib
 import os
+import re
 from pathlib import Path
 import secrets
 import subprocess
@@ -17,15 +18,44 @@ ROOT = Path(__file__).resolve().parent.parent
 POSTGRES_IMAGE = "postgres:17@sha256:b8faeff7712663c2773a190181e1246e37e364b887611c04658c28b44e2408fe"
 
 
-def run(*args: str, cwd: Path = ROOT, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess:
+def run(*args: str, cwd: Path = ROOT, capture: bool = False, check: bool = True, timeout: int = 1800) -> subprocess.CompletedProcess:
     """Run without a shell, retaining exit codes; do not log env files or secrets."""
     result = subprocess.run(
-        args, cwd=cwd, check=False, capture_output=capture, text=True,
-        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        args, cwd=cwd, check=False, capture_output=capture, text=True, encoding="utf-8", errors="replace",
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8:backslashreplace", "PYTHONUTF8": "1"}, timeout=timeout,
     )
     if check and result.returncode:
         raise RuntimeError(f"Command failed ({result.returncode}): {args[0]} {args[1] if len(args) > 1 else ''}")
     return result
+
+
+def cleanup_resource(kind: str, name: str) -> None:
+    """Remove a run-owned resource and prove exact name/tag absence via Docker."""
+    commands = {
+        "container": (("rm", "-f", "-v"), ("container", "ls", "-a", "--format", "{{.Names}}")),
+        "network": (("network", "rm"), ("network", "ls", "--format", "{{.Name}}")),
+        "volume": (("volume", "rm"), ("volume", "ls", "--format", "{{.Name}}")),
+        "image": (("image", "rm"), ("image", "ls", "--format", "{{.Repository}}:{{.Tag}}")),
+    }
+    remove, listing = commands[kind]
+    # Removal may report not found (e.g. a failed build). A successful listing
+    # is required regardless of the removal exit code.
+    run("docker", *remove, name, capture=True, check=False)
+    result = run("docker", *listing, capture=True)
+    if name in (result.stdout or "").splitlines():
+        raise RuntimeError(f"Cleanup failed: {kind} remains: {name}")
+    print(f"EVIDENCE cleanup {kind} {name} absent", flush=True)
+
+
+def cleanup_all(resources: list[tuple[str, str]]) -> None:
+    failures = []
+    for kind, name in resources:
+        try:
+            cleanup_resource(kind, name)
+        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+            failures.append(f"{kind} {name}: {type(exc).__name__}")
+    if failures:
+        raise RuntimeError("Cleanup verification failed: " + "; ".join(failures))
 
 
 def stage(name: str) -> None:
@@ -80,10 +110,12 @@ class DisposableRuntime:
             raise
 
     def __exit__(self, *_: object) -> None:
+        resources = []
         if self.database_created:
-            run("docker", "rm", "-f", self.db, capture=True, check=False)
+            resources.append(("container", self.db))
         if self.network_created:
-            run("docker", "network", "rm", self.network, capture=True, check=False)
+            resources.append(("network", self.network))
+        cleanup_all(resources)
 
 
 def image_name(kind: str, tag: str) -> str:
@@ -96,7 +128,7 @@ def smoke(image: str, runtime: DisposableRuntime, source_root: Path = ROOT) -> N
 
 
 def validate_source(kind: str) -> None:
-    if kind == "generated" and not (ROOT / ".git").exists():
+    if kind == "generated" and not (ROOT / "scripts/generate-service.py").is_file():
         raise RuntimeError("Generated-service acceptance requires a Git checkout of the PHP service template")
     if not (ROOT / "tests/Runtime/smoke-container.py").is_file():
         raise RuntimeError("Missing production runtime smoke contract")
@@ -105,27 +137,86 @@ def validate_source(kind: str) -> None:
 def remove_generated_dependencies(path: Path) -> None:
     """Remove only per-checkout Docker artifacts created by generated tools install."""
     key = hashlib.sha256(str(path).encode()).hexdigest()[:12]
-    run("docker", "volume", "rm", f"ulaxys-php-vendor-{key}", capture=True, check=False)
-    remove_image(f"ulaxys-php-tools:{key}")
+    cleanup_all([("volume", f"ulaxys-php-vendor-{key}"), ("image", f"ulaxys-php-tools:{key}")])
 
 
 def remove_image(image: str) -> None:
     # Unique per-run image tag; never prune shared Docker images or build cache.
-    run("docker", "image", "rm", "-f", image, capture=True, check=False)
+    cleanup_resource("image", image)
 
 
-def accept_smoke(runtime: DisposableRuntime) -> None:
+def record_image(image: str) -> None:
+    result = run("docker", "image", "inspect", image, "--format", "{{.Id}}", capture=True)
+    image_id = (result.stdout or "").strip()
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
+        raise RuntimeError("Missing valid production image ID")
+    print(f"EVIDENCE image-id {image_id}", flush=True)
+
+
+def network_matrix(image: str, runtime: DisposableRuntime) -> None:
+    # All resources belong to this invocation, no host ports or external database.
+    dual = runtime.network + "-dual"
+    disabled = runtime.network + "-noipv6"
+    dual_created = False
+    disabled_created = False
+    try:
+        ipv4 = run("docker", "network", "inspect", runtime.network, "--format",
+                   "{{.EnableIPv6}}", capture=True).stdout.strip()
+        if ipv4 != "false":
+            raise RuntimeError("Expected IPv4-only baseline network")
+        run("docker", "network", "create", "--internal", "--ipv6", dual, capture=True)
+        dual_created = True
+        ipv6 = run("docker", "network", "inspect", dual, "--format",
+                   "{{.EnableIPv6}}", capture=True).stdout.strip()
+        if ipv6 != "true":
+            raise RuntimeError("Expected dual-stack network")
+        run("docker", "network", "connect", dual, runtime.db, capture=True)
+        stage("Dual-stack production smoke")
+        run(sys.executable, str(ROOT / "tests/Runtime/smoke-container.py"),
+            image, str(runtime.environment), dual, str(ROOT))
+        stage("Container startup with IPv6 disabled")
+        run("docker", "run", "-d", "--name", disabled, "--network", runtime.network,
+            "--env-file", str(runtime.environment), "--sysctl", "net.ipv6.conf.all.disable_ipv6=1",
+            "--sysctl", "net.ipv6.conf.default.disable_ipv6=1", image, capture=True)
+        disabled_created = True
+        for _ in range(30):
+            result = run("docker", "exec", disabled, "php", "/usr/local/bin/service-runtime-check.php",
+                         "--health", capture=True, check=False, timeout=15)
+            if result.returncode == 0:
+                break
+            time.sleep(2)
+        else:
+            raise RuntimeError("IPv6-disabled container did not become healthy")
+        print("PASS network-matrix", flush=True)
+    finally:
+        resources = []
+        if disabled_created:
+            resources.append(("container", disabled))
+        if dual_created:
+            try:
+                run("docker", "network", "disconnect", "-f", dual, runtime.db, capture=True, check=False)
+            finally:
+                resources.append(("network", dual))
+                cleanup_all(resources)
+        else:
+            cleanup_all(resources)
+
+
+def accept_smoke(runtime: DisposableRuntime, matrix: bool = False) -> None:
     image = image_name("template-production", runtime.tag)
     try:
         stage("Dockerfile preflight")
         run("docker", "build", "--check", ".", cwd=ROOT)
         stage("Build template production image")
         run("docker", "build", "--target", "production", "-t", image, ".", cwd=ROOT)
+        record_image(image)
         stage("Production container smoke (isolated PostgreSQL)")
         smoke(image, runtime)
-        print("\n  PASS  Template production smoke", flush=True)
+        if matrix:
+            network_matrix(image, runtime)
     finally:
         remove_image(image)
+    print("\n  PASS  Template production smoke", flush=True)
 
 
 def generated_tools(path: Path, *arguments: str) -> None:
@@ -143,11 +234,13 @@ def accept_generated(runtime: DisposableRuntime, directory: Path) -> None:
         stage("Generate independent acceptance-service from committed HEAD")
         run(sys.executable, str(ROOT / "ulaxys"), "generate", "service", "acceptance-service",
             "--output", str(path), cwd=ROOT)
+        if (path / ".env").exists() or (path / ".git").exists():
+            raise RuntimeError("Generated service contains forbidden environment or Git state")
         stage("Verify immutable generation provenance")
         run(sys.executable, str(path / "scripts/verify-generation.py"), "verify", cwd=path)
         for file in ("tools.cmd", "tools.ps1", "tools.sh", "scripts/ulaxys-tools.py",
                      "scripts/verify-local.py", "scripts/clear-local-cache.py",
-                     "scripts/acceptance-local.py"):
+                     "scripts/acceptance-local.py", "scripts/runtime-local.py", "scripts/evidence-local.py"):
             if not (path / file).is_file():
                 raise RuntimeError(f"Generated service is missing tooling: {file}")
         if (path / "tests/Generator").exists() or (path / "scripts/generate-service.py").exists():
@@ -160,20 +253,31 @@ def accept_generated(runtime: DisposableRuntime, directory: Path) -> None:
         generated_tools(path, "verify")
         stage("Generated service local cache command")
         generated_tools(path, "cache:status")
+        stage("Generated service identity preflight and strict autoload")
+        generated_tools(path, "check:identity")
+        stage("Generated service inherited runtime recovery")
+        generated_tools(path, "runtime", "--list")
+        generated_tools(path, "runtime")
         stage("Build generated service production image")
         run("docker", "build", "--target", "production", "-t", image, ".", cwd=path)
+        record_image(image)
         stage("Generated service production container smoke")
         smoke(image, runtime, path)
-        print("\n  PASS  Generated service acceptance", flush=True)
     finally:
-        remove_image(image)
-        remove_generated_dependencies(path)
+        try:
+            remove_image(image)
+        finally:
+            remove_generated_dependencies(path)
+    print("\n  PASS  Generated service acceptance", flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("kind", choices=("smoke", "generated"))
+    parser.add_argument("--network-matrix", action="store_true")
     args = parser.parse_args(argv)
+    if args.network_matrix and args.kind != "smoke":
+        parser.error("--network-matrix requires smoke")
     print(f"uLaxys  /  ACCEPTANCE  /  {args.kind.upper()}\n", flush=True)
     try:
         validate_source(args.kind)
@@ -181,7 +285,7 @@ def main(argv: list[str] | None = None) -> int:
         with tempfile.TemporaryDirectory(prefix="ulaxys-acceptance-") as temp:
             with DisposableRuntime(Path(temp)) as runtime:
                 if args.kind == "smoke":
-                    accept_smoke(runtime)
+                    accept_smoke(runtime, matrix=args.network_matrix)
                 else:
                     accept_generated(runtime, Path(temp))
         return 0
@@ -191,4 +295,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    # Keep the caller's console encoding; escape only characters it cannot represent.
+    # Python subprocess pipes use explicit UTF-8, independent of the Windows code page.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="backslashreplace")
     sys.exit(main())

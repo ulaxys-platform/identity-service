@@ -16,7 +16,7 @@ import uuid
 
 def docker(*args, input_text=None, check=True):
     result = subprocess.run(
-        ["docker", *args], input=input_text, text=True, capture_output=True
+        ["docker", *args], input=input_text, text=True, capture_output=True, timeout=240
     )
     if check and result.returncode:
         raise RuntimeError("Docker operation failed: " + " ".join(args[:2]))
@@ -152,10 +152,20 @@ if (json_decode(file_get_contents('/tmp/openapi-state'), true) !== [filesize('st
         docker("stop", "--time", "170", main_container)
         state = json.loads(docker("inspect", "--format", "{{json .State}}", main_container).stdout)
         assert state["ExitCode"] == 0 and not state["OOMKilled"]
-        print("PASS: final-image runtime, dependency isolation, Signature, probes, OpenAPI, logs, fatal-child exit and graceful shutdown")
     finally:
+        failures = []
         for name in containers:
-            docker("rm", "-f", name, check=False)
+            try:
+                docker("rm", "-f", "-v", name, check=False)
+                result = docker("container", "ls", "-a", "--format", "{{.Names}}")
+                if name in result.stdout.splitlines():
+                    raise RuntimeError("Container remains")
+                print(f"EVIDENCE cleanup container {name} absent", flush=True)
+            except (OSError, RuntimeError, subprocess.SubprocessError):
+                failures.append(name)
+        if failures:
+            raise RuntimeError("Smoke cleanup verification failed: " + "; ".join(failures))
+    print("PASS: final-image runtime, dependency isolation, Signature, probes, OpenAPI, logs, fatal-child exit and graceful shutdown", flush=True)
 
 
 if __name__ == "__main__":

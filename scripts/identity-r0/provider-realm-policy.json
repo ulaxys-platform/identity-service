@@ -1,0 +1,15 @@
+{
+  "realm": {
+    "registrationAllowed": false,
+    "editUsernameAllowed": false,
+    "duplicateEmailsAllowed": false
+  },
+  "userProfileAttribute": {
+    "name": "identity_platform_ulid",
+    "permissions": {
+      "view": ["admin"],
+      "edit": ["admin"]
+    },
+    "multivalued": false
+  }
+}

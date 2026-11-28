@@ -1,0 +1,87 @@
+name: CI
+
+# Verify only. Do not publish, deploy, migrate existing services, or use production credentials.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Composer, PHPUnit, Pint, OpenAPI, generators
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install frozen dependencies
+        run: sh tools.sh install --evidence
+
+      - name: Quality and security gates (isolated PostgreSQL)
+        run: sh tools.sh verify --evidence
+
+      - name: Upload command evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-evidence
+          path: test-results/acceptance/
+          if-no-files-found: warn
+          retention-days: 14
+
+  image:
+    name: Production image and container smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Production smoke and network compatibility
+        run: sh tools.sh smoke --network-matrix --evidence
+
+      - name: Shared PHP runtime recovery
+        run: |
+          sh tools.sh runtime --evidence
+
+      - name: Upload command evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-evidence
+          path: test-results/acceptance/
+          if-no-files-found: warn
+          retention-days: 14
+
+  operator-windows:
+    name: Windows Identity operator CLI
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Identity tooling and evidence regression
+        shell: pwsh
+        run: .\tools test tooling --evidence
+
+      - name: Upload command evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-tooling-evidence
+          path: test-results/acceptance/
+          if-no-files-found: warn
+          retention-days: 14
