@@ -23,3 +23,24 @@ The PostgreSQL migration adds `identity_provider_mappings`. The request primary 
 This increment covers provisioning staging and retry. Keycloak-powered actor validation, session and token administration, production activation and bootstrap, reference data, and removal of the original authentication engine remain open. The current HTTP routes still use their prior authority. The R0 scripts exercise a separate disposable Keycloak realm over its development network. They do not exercise this HTTPS-only staging adapter. The new PostgreSQL regression uses HTTP fault injection to verify recovery after provider creation with a lost response.
 
 IDV2-005 and IDV2-014 have partial provisioning safeguards and remain open for bootstrap and lifecycle transitions. IDV2-015 has a transactional staging audit assertion and remains open for the complete lifecycle. The other dispositions in [the security review](review-remediation.md) are unaffected.
+
+### Cloud verification for the staging increment
+
+Starting Identity revision `a21c2932a941401347de9672a51573780f9a242f`. Foundation completed with 174 tests and 970 assertions after fixing local output ownership and finishing Composer installation before rerunning. The disposable PostgreSQL suite completed with 58 tests and 253 assertions. Tooling completed with 14 tests. There were no failures or skips in these final suite runs. OpenAPI verified 24 operations. The command `php artisan ulaxys:generate-integration --all --gateway-format=json --strict --dry-run --output=r23-review` completed successfully with schema-v2 review output. The real Keycloak R0 check completed successfully.
+
+The existing CA-aware installer completed successfully. The standard CLI install, smoke and runtime encountered Debian TLS trust errors during image builds. Standard verify and full acceptance stopped during Composer audit with a proxy CA error. The direct CA-aware `composer audit --locked` reached the proxy and returned CONNECT 403. Audit and container acceptance remain open.
+
+On Windows Docker Desktop, use the repository wrappers from the checkout root:
+
+```powershell
+.\tools install
+.\tools test tooling
+.\tools test foundation
+.\tools test database
+.\tools verify
+.\tools smoke
+.\tools runtime
+.\tools acceptance full
+```
+
+The staging increment leaves R2 and R3 incomplete. Existing provider-independent evidence is not release acceptance.
