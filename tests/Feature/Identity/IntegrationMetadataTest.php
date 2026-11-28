@@ -33,14 +33,13 @@ final class IntegrationMetadataTest extends TestCase
 
     public function test_pre_auth_and_contract_operations_are_explicitly_exempt_and_business_operations_have_permissions(): void
     {
-        $exempt = [
-            'identity/auth/login', 'identity/auth/refresh', 'identity/auth/setup',
-            'identity/credentials/forgot-password', 'identity/credentials/reset-password',
-            'identity/credentials/email-verification/confirm',
-            'identity/oauth/jwks', 'identity/oauth/introspect', 'identity/oauth/revoke',
-            'identity/actor/context',
-        ];
+        $exempt = ['identity/actor/context'];
         $operations = $this->declaredOperations();
+        foreach (['identity/auth/login', 'identity/auth/setup', 'identity/auth/refresh',
+            'identity/oauth/jwks', 'identity/oauth/introspect', 'identity/oauth/revoke'] as $retired) {
+            $this->assertArrayNotHasKey($retired, $operations);
+            $this->assertFalse(app('router')->getRoutes()->hasNamedRoute($retired));
+        }
         foreach ($exempt as $name) {
             $this->assertArrayHasKey('exempt', $operations[$name], $name.' must carry an explicit exemption reason.');
             $this->assertArrayNotHasKey('permission', $operations[$name]);

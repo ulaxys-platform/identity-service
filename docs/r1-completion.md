@@ -84,3 +84,7 @@ Ortam: Windows, Docker Desktop; Identity repository. Aşağıdaki sonuçlar Prod
 Ortak neden: `AuthenticationController.php:88`, tanımsız `AuthenticationService::setup()`. Bu bir gerçek uygulama regresyonudur; PostgreSQL/CLI hatası olarak sınıflandırılmaz. Database acceptance **FAIL**. Eski authentication motoruna yeni credential authority eklenmeyecek; R2 ve ilgili lifecycle/authorization aşamalarında idempotent bootstrap, tek kullanımlık aktivasyon, parola otoritesinin Keycloak'ta kalması, provisioning/reconciliation ve yetkisiz yönetim reddi için replacement regression kanıtı zorunludur. Mevcut başarısızlıklar gizlenmez, skip edilmez ve giderilmiş sayılmaz.
 
 R1B: [resmî PHP Template P4.5 PR #22](https://github.com/ulaxys-platform/ulaxys-be-php-template-service/pull/22) ayrı çalışma kapsamında; kabulü bu kayıtla verilmez. R1C kontrollü upgrade, P4.5 kabulü ve kaynak pin doğrulaması sonrasında yapılacaktır. R2–R9 beklemede; Identity PR #1 merge BLOCKED. Bu güncelleme yalnızca dokümantasyon kanıtıdır; uygulama, test, lockfile veya template değişikliği değildir.
+
+### R2/R3 continuation boundary
+
+The continuation preserves P4.5 and its generated schema-v2 review contract. See [Keycloak-backed HTTP and lifecycle continuation](identity-providers.md#keycloak-backed-http-and-lifecycle-continuation) for changed API contracts and actual HTTPS provider evidence. An accepted R1 baseline is insufficient for the changed authentication boundary. Audit and full acceptance remain separate gates.

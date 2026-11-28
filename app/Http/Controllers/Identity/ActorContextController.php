@@ -28,7 +28,7 @@ final class ActorContextController extends Controller
     public function show(): JsonResponse
     {
         $response = (new ActorContextResponse)->setStatus(200)->setMessage('OK')->setSize(1)
-            ->withItem($this->service->forActor(request()->attributes->get('actor.user'), request()->attributes->get('actor.session')));
+            ->withItem($this->service->forProviderActor(request()->attributes->get('actor.user'), request()->attributes->get('actor.claims')));
 
         return response()->json($response->toArray(), $response->getStatus());
     }

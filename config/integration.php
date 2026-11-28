@@ -27,45 +27,7 @@ return [
                 ],
             ],
             'operations' => [
-                'identity/auth/login' => ['operation' => 'login', 'gatewayAction' => 'login', 'exempt' => 'Pre-authentication endpoint; protected by the service signature, login rate limiting and enumeration-resistant responses.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-login']]],
-                'identity/auth/refresh' => ['operation' => 'refreshToken', 'gatewayAction' => 'refresh', 'exempt' => 'Pre-authentication endpoint; presents a single-use rotating refresh token and is rate limited.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-refresh']]],
-                'identity/auth/setup' => ['operation' => 'setupAccount', 'gatewayAction' => 'setup', 'exempt' => 'Pre-authentication endpoint; consumes a single-use bootstrap setup token issued by the auditable identity:bootstrap-admin command.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-recovery']]],
                 'identity/auth/logout' => ['operation' => 'logout', 'gatewayAction' => 'logout', 'permission' => 'logout', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
-            ],
-        ],
-        [
-            'id' => 'identity-sessions',
-            'permissions' => [
-                'subject' => 'identity-sessions',
-                'description' => 'Identity session management',
-                'actions' => [
-                    ['action' => 'index', 'description' => ['tr' => 'Kendi aktif oturumlarını listeler', 'en' => 'List own active sessions', 'ar' => 'عرض جلسات المستخدم النشطة'], 'module' => 'identity-sessions'],
-                    ['action' => 'revoke', 'description' => ['tr' => 'Kendi oturumlarını iptal eder', 'en' => 'Revoke own sessions', 'ar' => 'إلغاء جلسات المستخدم'], 'module' => 'identity-sessions'],
-                ],
-            ],
-            'operations' => [
-                'identity/sessions/index' => ['operation' => 'listSessions', 'gatewayAction' => 'listSessions', 'permission' => 'index', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
-                'identity/sessions/revoke-current' => ['operation' => 'revokeCurrentSession', 'gatewayAction' => 'revokeCurrentSession', 'permission' => 'revoke', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
-                'identity/sessions/revoke-all' => ['operation' => 'revokeAllOtherSessions', 'gatewayAction' => 'revokeAllSessions', 'permission' => 'revoke', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
-                'identity/sessions/revoke' => ['operation' => 'revokeSession', 'gatewayAction' => 'revokeSession', 'permission' => 'revoke', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
-            ],
-        ],
-        [
-            'id' => 'identity-credentials',
-            'permissions' => [
-                'subject' => 'identity-credentials',
-                'description' => 'Identity credential lifecycle',
-                'actions' => [
-                    ['action' => 'change', 'description' => ['tr' => 'Kendi şifresini değiştirir', 'en' => 'Change own password', 'ar' => 'تغيير كلمة المرور الخاصة'], 'module' => 'identity-credentials'],
-                    ['action' => 'verify', 'description' => ['tr' => 'E-posta doğrulamasını başlatır', 'en' => 'Start own email verification', 'ar' => 'بدء تأكيد البريد الإلكتروني'], 'module' => 'identity-credentials'],
-                ],
-            ],
-            'operations' => [
-                'identity/credentials/change-password' => ['operation' => 'changePassword', 'gatewayAction' => 'changePassword', 'permission' => 'change', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
-                'identity/credentials/forgot-password' => ['operation' => 'forgotPassword', 'gatewayAction' => 'forgotPassword', 'exempt' => 'Pre-authentication endpoint; responds identically regardless of account existence and is rate limited.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-recovery']]],
-                'identity/credentials/reset-password' => ['operation' => 'resetPassword', 'gatewayAction' => 'resetPassword', 'exempt' => 'Pre-authentication endpoint; consumes a single-use hashed recovery token and is rate limited.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-recovery']]],
-                'identity/credentials/email-verification/start' => ['operation' => 'startEmailVerification', 'gatewayAction' => 'startEmailVerification', 'permission' => 'verify', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
-                'identity/credentials/email-verification/confirm' => ['operation' => 'confirmEmailVerification', 'gatewayAction' => 'confirmEmailVerification', 'exempt' => 'Pre-authentication endpoint; consumes a single-use hashed verification token and is rate limited.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-recovery']]],
             ],
         ],
         [
@@ -92,12 +54,14 @@ return [
                     ['action' => 'index', 'description' => ['tr' => 'Kullanıcı listesini görüntüler', 'en' => 'List platform users', 'ar' => 'عرض قائمة المستخدمين'], 'module' => 'identity-admin-users'],
                     ['action' => 'read', 'description' => ['tr' => 'Kullanıcı detayını görüntüler', 'en' => 'View platform user details', 'ar' => 'عرض تفاصيل المستخدم'], 'module' => 'identity-admin-users'],
                     ['action' => 'create', 'description' => ['tr' => 'Yeni kullanıcı oluşturur', 'en' => 'Create a platform user', 'ar' => 'إنشاء مستخدم جديد'], 'module' => 'identity-admin-users'],
+                    ['action' => 'lifecycle', 'description' => ['tr' => 'Hesap yaşam döngüsünü yönetir', 'en' => 'Manage account lifecycle', 'ar' => 'إدارة دورة حياة الحساب'], 'module' => 'identity-admin-users'],
                 ],
             ],
             'operations' => [
                 'identity/admin-users/index' => ['operation' => 'listUsers', 'gatewayAction' => 'listUsers', 'permission' => 'index', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class], ['kind' => 'authorization', 'middleware' => RequirePlatformAdministrator::class]]],
                 'identity/admin-users/create' => ['operation' => 'createUser', 'gatewayAction' => 'createUser', 'permission' => 'create', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class], ['kind' => 'authorization', 'middleware' => RequirePlatformAdministrator::class]]],
                 'identity/admin-users/show' => ['operation' => 'showUser', 'gatewayAction' => 'showUser', 'permission' => 'read', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class], ['kind' => 'authorization', 'middleware' => RequirePlatformAdministrator::class]]],
+                'identity/admin-users/lifecycle' => ['operation' => 'manageLifecycle', 'gatewayAction' => 'manageLifecycle', 'permission' => 'lifecycle', 'expose' => false, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class], ['kind' => 'authorization', 'middleware' => RequirePlatformAdministrator::class]]],
             ],
         ],
         [
@@ -105,15 +69,6 @@ return [
             'permissions' => null,
             'operations' => [
                 'identity/actor/context' => ['operation' => 'actorContext', 'gatewayAction' => 'actorContext', 'exempt' => 'Gateway integration contract endpoint; any verified actor may read its own context, no permission decision is involved.', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
-            ],
-        ],
-        [
-            'id' => 'identity-oauth-contract',
-            'permissions' => null,
-            'operations' => [
-                'identity/oauth/jwks' => ['operation' => 'jwks', 'gatewayAction' => 'jwks', 'exempt' => 'Gateway token-validation contract endpoint; publishes public signing keys only, gated by the service signature.', 'expose' => true, 'securityMiddleware' => []],
-                'identity/oauth/introspect' => ['operation' => 'introspectToken', 'gatewayAction' => 'introspect', 'exempt' => 'Gateway token-validation contract endpoint (RFC 7662 semantics); machine-to-machine, gated by the service signature and rate limiting.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-introspect']]],
-                'identity/oauth/revoke' => ['operation' => 'revokeToken', 'gatewayAction' => 'revokeToken', 'exempt' => 'Gateway token-revocation contract endpoint (RFC 7009 semantics); machine-to-machine, gated by the service signature.', 'expose' => true, 'securityMiddleware' => []],
             ],
         ],
     ],

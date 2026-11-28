@@ -9,6 +9,9 @@ use OpenApi\Attributes as OA;
 use Ulaxys\Identity\Http\Controllers\Controller;
 use Ulaxys\Identity\Http\Requests\Identity\CreateAdminUserRequest;
 use Ulaxys\Identity\Http\Requests\Identity\ListAdminUsersRequest;
+use Ulaxys\Identity\Http\Requests\Identity\ManageProviderAccountRequest;
+use Ulaxys\Identity\Services\Identity\Provider\ManageProviderIdentity;
+use Ulaxys\Identity\Services\Identity\Provider\ProviderFailure;
 use Ulaxys\Identity\Services\Identity\UserAdministrationService;
 
 final class AdminUserController extends Controller
@@ -49,17 +52,18 @@ final class AdminUserController extends Controller
         tags: ['IdentityAdminUsers'],
         security: [['serviceSignature' => [], 'bearerAuth' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: '#/components/schemas/IdentityCreateUserInput')),
+        parameters: [new OA\Parameter(name: 'Idempotency-Key', in: 'header', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 201, description: 'Invited user created without credentials', content: new OA\JsonContent(ref: '#/components/schemas/IdentityUserCreatedResponse')),
             new OA\Response(response: 400, description: 'Invalid body', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
             new OA\Response(response: 401, description: 'Missing or invalid actor token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
             new OA\Response(response: 403, description: 'Signature required or platform administrator grant missing', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
-            new OA\Response(response: 409, description: 'Identifier already in use', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
+            new OA\Response(response: 409, description: 'Provisioning request conflict', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
         ],
     )]
     public function store(CreateAdminUserRequest $request): JsonResponse
     {
-        $response = $this->service->create(request()->attributes->get('actor.user'), $request->validated());
+        $response = $this->service->create(request()->attributes->get('actor.user'), $request->validated(), (string) $request->header('Idempotency-Key'));
 
         return response()->json($response->toArray(), $response->getStatus());
     }
@@ -82,5 +86,38 @@ final class AdminUserController extends Controller
         $response = $this->service->show($userId);
 
         return response()->json($response->toArray(), $response->getStatus());
+    }
+
+    #[OA\Post(
+        path: '/api/v1/admin/users/{userId}/lifecycle',
+        operationId: 'identity/admin-users/lifecycle',
+        tags: ['IdentityAdminUsers'],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: '#/components/schemas/IdentityProviderLifecycleInput')),
+        responses: [
+            new OA\Response(response: 200, description: 'Provider lifecycle operation completed'),
+            new OA\Response(response: 400, description: 'Invalid operation'),
+            new OA\Response(response: 401, description: 'Authentication required'),
+            new OA\Response(response: 403, description: 'Administrator grant required'),
+            new OA\Response(response: 503, description: 'Provider lifecycle operation could not be confirmed'),
+        ],
+    )]
+    public function lifecycle(ManageProviderAccountRequest $request, string $userId, ManageProviderIdentity $accounts): JsonResponse
+    {
+        $actorId = (string) $request->attributes->get('actor.user')->id;
+        $id = strtolower($userId);
+        try {
+            match ($request->validated('operation')) {
+                'invite' => $accounts->invite($id, $actorId),
+                'activate' => $accounts->activate($id, false, $actorId),
+                'suspend' => $accounts->disable($id, true, $actorId),
+                'disable' => $accounts->disable($id, false, $actorId),
+            };
+        } catch (ProviderFailure) {
+            return response()->json(['status' => 503, 'code' => 503, 'message' => 'Lifecycle operation could not be confirmed.'], 503);
+        }
+
+        return response()->json(['size' => 0, 'status' => 200, 'message' => 'Lifecycle operation completed.']);
     }
 }

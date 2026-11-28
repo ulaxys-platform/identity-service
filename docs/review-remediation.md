@@ -47,3 +47,13 @@ No PHPUnit, Composer audit, PHP 8.5 or Docker execution is claimed by this remed
 - IDV2-015: audit transaction and DB immutability gaps.
 - IDV2-016: owner session count test inconsistency and unexecuted tests.
   All findings require fix or justified removal with replacement tests. No runtime acceptance in documentation update.
+
+## Keycloak HTTP continuation dispositions
+
+- R23-01: The production implementation was exercised over hostname-verified HTTPS against Keycloak 26.8.2, separate PostgreSQL and scoped clients. SMTP action consumption and full acceptance remain open.
+- R23-02: Local authentication, credentials, sessions and token routes were withdrawn. The signing-key generation and old bootstrap commands were removed. Historical classes, migrations and test disposition remain open.
+- R23-03: Keycloak-backed HTTP user staging was exercised with an eligible administrator, and the unprivileged request was denied. R6 integration remains open.
+- R23-04: The reconciliation command retries staged operations and pending disablement/suspension. Transactional platform state denies access before provider disablement. Cross-operation races and SMTP delivery recovery remain open.
+- R23-05: Two independent concurrent application processes submitted one provisioning request to the real provider and received the same platform ULID. PostgreSQL contained one subject mapping. Activation/disablement concurrency remains open.
+- R23-06: The HTTPS realm used an admin-managed correlation attribute, with an exact provider username and subject check at the application boundary. Broader registration and federation policy acceptance remains open.
+- IDV2-001, 004, 008, 010–014 retain open replacement coverage for refresh replay/concurrency, action links, account recovery, throttling and lifecycle races. IDV2-002 and 006 have real Keycloak HTTP and rotation evidence. IDV2-005 has bootstrap replay evidence. IDV2-007 and 009 retain profile mapping and conjunctive signature/bearer coverage. IDV2-003, 015 and 016 remain open for final-lock advisory audit and complete operational regression/acceptance evidence.

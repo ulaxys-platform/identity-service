@@ -11,5 +11,6 @@ use Ulaxys\Identity\Http\Middleware\Identity\VerifyActorToken;
 Route::prefix('api/v1/admin/users')->middleware([VerifyActorToken::class, RequirePlatformAdministrator::class])->group(function (): void {
     Route::get('/', [AdminUserController::class, 'index'])->name('identity/admin-users/index');
     Route::post('/', [AdminUserController::class, 'store'])->name('identity/admin-users/create');
+    Route::post('{userId}/lifecycle', [AdminUserController::class, 'lifecycle'])->name('identity/admin-users/lifecycle');
     Route::get('{userId}', [AdminUserController::class, 'show'])->name('identity/admin-users/show');
 });

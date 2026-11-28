@@ -4,30 +4,25 @@ declare(strict_types=1);
 
 namespace Ulaxys\Identity\Services\Identity;
 
-use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\DB;
-use Ulaxys\Identity\Models\LoginIdentifier;
+use Illuminate\Support\Str;
 use Ulaxys\Identity\Models\User;
 use Ulaxys\Identity\Presenters\Mapper\Identity\UserMapper;
-use Ulaxys\Identity\Repositories\RepositoryInterface\LoginIdentifierRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\UserRepositoryInterface;
+use Ulaxys\Identity\Services\Identity\Provider\ProviderFailure;
+use Ulaxys\Identity\Services\Identity\Provider\ProvisioningConflict;
+use Ulaxys\Identity\Services\Identity\Provider\ProvisionProviderIdentity;
 use Ulaxys\Identity\Transformers\ErrorResponseObjects\HttpErrorResponseObjectOfResult;
 use Ulaxys\Identity\Transformers\Identity\UserCreatedResponse;
 use Ulaxys\Identity\Transformers\Identity\UserListResponse;
 use Ulaxys\Identity\Transformers\Identity\UserProfileResponse;
 
-/**
- * Interim I1 user administration (ADR-0004): requires an active platform
- * administrator grant; creates invited users without passwords. PostgreSQL
- * remains the concurrency authority for identifier uniqueness.
- */
+/** Identity profile administration behind the interim platform administrator grant. */
 final class UserAdministrationService
 {
     public function __construct(
         private readonly UserRepositoryInterface $users,
-        private readonly LoginIdentifierRepositoryInterface $identifiers,
         private readonly UserMapper $mapper,
-        private readonly AuditLogger $audit,
+        private readonly ProvisionProviderIdentity $provisioning,
     ) {}
 
     public function page(int $limit, int $offset, ?string $status): UserListResponse
@@ -51,46 +46,27 @@ final class UserAdministrationService
     }
 
     /** @param array<string, mixed> $data */
-    public function create(User $actor, array $data): UserCreatedResponse|HttpErrorResponseObjectOfResult
+    public function create(User $actor, array $data, string $requestId): UserCreatedResponse|HttpErrorResponseObjectOfResult
     {
-        $kind = (string) $data['kind'];
-        $identifier = (string) $data['identifier'];
-        $normalized = LoginIdentifier::normalize($identifier);
-        if ($this->identifiers->findByKindAndNormalized($kind, $normalized) !== null) {
-            return $this->identifierConflict();
+        if (! Str::isUlid($requestId)) {
+            return (new HttpErrorResponseObjectOfResult)->setStatus(400)->setCode(400)->setMessage('Idempotency-Key must be a provisioning request ULID.');
         }
+
         try {
-            $user = DB::transaction(function () use ($actor, $data, $kind, $identifier): User {
-                $user = $this->users->createWithProfile(
-                    ['status' => User::STATUS_INVITED, 'type' => User::TYPE_HUMAN, 'created_by' => (string) $actor->id],
-                    [
-                        'display_name' => (string) $data['displayName'],
-                        'first_name' => $data['firstName'] ?? null,
-                        'last_name' => $data['lastName'] ?? null,
-                        'preferred_language' => (string) ($data['preferredLanguage'] ?? 'en'),
-                        'preferred_timezone' => (string) ($data['preferredTimezone'] ?? 'UTC'),
-                    ],
-                );
-                $this->identifiers->createForUser((string) $user->id, $kind, $identifier, false);
-                $this->audit->audit('identity.user.created', (string) $actor->id, 'user', 'user', (string) $user->id, 'success', ['kind' => $kind]);
-
-                return $user;
-            });
-        } catch (QueryException $exception) {
-            // A concurrent transaction may win the unique race after the
-            // domain precheck; PostgreSQL is the final authority.
-            if ((string) $exception->getCode() !== '23505') {
-                throw $exception;
-            }
-
-            return $this->identifierConflict();
+            $id = $this->provisioning->stage($requestId, [
+                'display_name' => $data['displayName'],
+                'first_name' => $data['firstName'] ?? null,
+                'last_name' => $data['lastName'] ?? null,
+                'preferred_language' => $data['preferredLanguage'] ?? 'en',
+                'preferred_timezone' => $data['preferredTimezone'] ?? 'UTC',
+            ], $data['identifier'], (string) $actor->id);
+        } catch (ProvisioningConflict) {
+            return (new HttpErrorResponseObjectOfResult)->setStatus(409)->setCode(409)->setMessage('Provisioning request conflict.');
+        } catch (ProviderFailure) {
+            return (new HttpErrorResponseObjectOfResult)->setStatus(503)->setCode(503)->setMessage('Provisioning pending. Retry with the same key.');
         }
 
-        return (new UserCreatedResponse)->setStatus(201)->setMessage('Created')->setSize(1)->withItem($this->mapper->map($user));
-    }
-
-    private function identifierConflict(): HttpErrorResponseObjectOfResult
-    {
-        return (new HttpErrorResponseObjectOfResult)->setStatus(409)->setCode(409)->setMessage((string) trans('identity.admin.identifier_conflict'));
+        return (new UserCreatedResponse)->setStatus(201)->setMessage('Created')->setSize(1)
+            ->withItem($this->mapper->map($this->users->findById($id)));
     }
 }

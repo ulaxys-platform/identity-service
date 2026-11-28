@@ -71,4 +71,66 @@ final class ProviderProvisioningTest extends TestCase
             'correlation_id' => $requestId,
         ]);
     }
+
+    public function test_provider_lifecycle_requires_confirmed_activation_and_reconciles_disablement(): void
+    {
+        DestructiveDatabaseGuard::assertSafe($this->app, DB::connection());
+        $this->artisan('migrate:fresh', ['--force' => true])->assertSuccessful();
+        config([
+            'keycloak.base_url' => 'https://provider.example.test',
+            'keycloak.realm' => 'identity',
+            'keycloak.issuer' => 'https://provider.example.test/realms/identity',
+            'keycloak.admin.client_id' => 'provisioner',
+            'keycloak.admin.client_secret' => 'fixture',
+        ]);
+
+        $user = User::query()->create(['status' => User::STATUS_INVITED, 'type' => User::TYPE_HUMAN]);
+        DB::table('identity_provider_mappings')->insert([
+            'request_id' => (string) Str::ulid(), 'user_id' => $user->id,
+            'issuer' => config('keycloak.issuer'), 'contact_email' => 'fixture@example.test',
+            'state' => 'staged_disabled', 'subject' => 'provider-subject',
+        ]);
+        $verified = false;
+        $disableAvailable = false;
+        Http::preventStrayRequests();
+        Http::fake(function (Request $request) use ($user, &$verified, &$disableAvailable) {
+            if (str_ends_with($request->url(), '/token')) {
+                return Http::response(['access_token' => 'fixture-admin-token']);
+            }
+            if ($request->method() === 'GET') {
+                return Http::response([
+                    'id' => 'provider-subject', 'username' => 'identity-'.strtolower($user->id),
+                    'email' => 'fixture@example.test', 'emailVerified' => $verified,
+                    'attributes' => ['identity_platform_ulid' => [$user->id]],
+                    'enabled' => true, 'requiredActions' => $verified ? [] : ['VERIFY_EMAIL'],
+                ]);
+            }
+            if (str_contains($request->url(), '/execute-actions-email')) {
+                $this->assertStringContainsString('lifespan=900', $request->url());
+
+                return Http::response(null, 204);
+            }
+
+            return Http::response(null, $disableAvailable ? 204 : 503);
+        });
+        $parameters = ['user' => $user->id];
+        $this->artisan('identity:provider-account', $parameters + ['operation' => 'invite'])->assertSuccessful();
+        $this->artisan('identity:provider-account', $parameters + ['operation' => 'bootstrap'])->assertFailed();
+        $this->assertDatabaseCount('identity_platform_administrators', 0);
+        $this->assertFalse($user->fresh()->isLoginEligible());
+
+        $verified = true;
+        $this->artisan('identity:provider-account', $parameters + ['operation' => 'bootstrap'])->assertSuccessful();
+        $this->artisan('identity:provider-account', $parameters + ['operation' => 'bootstrap'])->assertSuccessful();
+        $this->assertDatabaseCount('identity_platform_administrators', 1);
+        $this->assertTrue($user->fresh()->isLoginEligible());
+
+        $this->artisan('identity:provider-account', $parameters + ['operation' => 'disable'])->assertFailed();
+        $this->assertFalse($user->fresh()->isLoginEligible());
+        $this->assertDatabaseHas('identity_provider_mappings', ['user_id' => $user->id, 'state' => 'disable_pending']);
+        $this->artisan('identity:provider-account', $parameters + ['operation' => 'activate'])->assertFailed();
+        $disableAvailable = true;
+        $this->artisan('identity:provider-reconcile')->assertSuccessful();
+        $this->assertDatabaseHas('identity_provider_mappings', ['user_id' => $user->id, 'state' => 'disabled']);
+    }
 }
