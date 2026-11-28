@@ -70,8 +70,8 @@ final class IntegrationMetadata
     public function validate(array $config): array
     {
         self::keys($config, ['schemaVersion', 'service', 'gateway', 'permissionsFile', 'modules']);
-        if ($config['schemaVersion'] !== 1) {
-            throw new IntegrationException('Unsupported integration schemaVersion; expected 1.');
+        if (! in_array($config['schemaVersion'], [1, 2], true)) {
+            throw new IntegrationException('Unsupported integration schemaVersion; expected 1 or 2.');
         }
         self::identifier($config['service']);
         if (! is_array($config['gateway'])) {
@@ -163,7 +163,10 @@ final class IntegrationMetadata
                 if (! is_string($name) || ! preg_match('~^[A-Za-z0-9][A-Za-z0-9._/-]{0,159}$~D', $name) || ! is_array($operation)) {
                     throw new IntegrationException('Invalid operation route name/metadata.');
                 }
-                self::keys($operation, ['operation', 'expose'], ['permission', 'exempt', 'gatewayAction']);
+                self::keys($operation, $config['schemaVersion'] === 2 ? ['operation', 'expose', 'securityMiddleware'] : ['operation', 'expose'], ['permission', 'exempt', 'gatewayAction']);
+                if ($config['schemaVersion'] === 2) {
+                    SecurityContract::validate($operation['securityMiddleware']);
+                }
                 if (isset($operation['gatewayAction'])) {
                     self::phpIdentifier($operation['gatewayAction']);
                 }

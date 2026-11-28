@@ -27,6 +27,9 @@ final class PermissionMapper
             }
             unset($byName[$route['name']]);
             $metadata = $mapping['metadata'];
+            if ($config['schemaVersion'] === 2 && ($route['securityMiddleware'] ?? null) !== $metadata['securityMiddleware']) {
+                throw new IntegrationException('Security metadata was not verified against the registered route: '.$route['name']);
+            }
             $protected = $route['requiresSignature'];
             if (! $protected && ($metadata['expose'] || isset($metadata['permission']))) {
                 throw new IntegrationException('Public operation must be explicitly exempt and unexposed: '.$route['name']);

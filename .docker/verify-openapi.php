@@ -1,8 +1,11 @@
 <?php
 
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use OpenApi\Generator;
 use Ulaxys\Identity\Http\Controllers\Documentation\OpenApiController;
+use Ulaxys\Identity\Integration\IntegrationMetadata;
+use Ulaxys\Identity\Integration\SecurityContract;
 
 try {
     // Build/release gate; no database connection, credentials or HTTP generation.
@@ -64,9 +67,23 @@ try {
             $documented[$method.' '.$path] = $operation;
         }
     }
+    $integration = config('integration', []);
+    if (($integration['schemaVersion'] ?? 1) === 2) {
+        $integration = (new IntegrationMetadata)->validate($integration);
+    }
+    if (($integration['schemaVersion'] ?? 1) === 2) {
+        $app->make(HttpKernel::class);
+    }
     $mounted = [];
     foreach ($app['router']->getRoutes() as $route) {
         $middleware = $route->gatherMiddleware();
+        $contract = SecurityContract::forRoute($integration, $route->getName());
+        if ($contract !== null && $route->excludedMiddleware() !== []) {
+            $fail('excluded middleware on security-aware route: '.$route->uri());
+        }
+        if ($contract !== null) {
+            SecurityContract::matchRoute($contract, array_values(array_unique($middleware)), $app['router']->gatherRouteMiddleware($route), '/'.ltrim($route->uri(), '/'));
+        }
         // Exclude only the document delivery endpoint, not names or URI prefixes.
         if ($route->uri() === 'openapi.json' && $route->getName() === 'openapi'
             && $route->getDomain() === null && $route->methods() === ['GET', 'HEAD']
@@ -87,7 +104,12 @@ try {
             if (! isset($documented[$key])) {
                 $fail('mounted operation missing from artifact: '.$key);
             }
-            if (in_array('service.signature', $middleware, true)
+            if (($integration['schemaVersion'] ?? 1) === 2 && $contract === null && ! in_array($route->uri(), ['healthCheck/apiStatus', 'healthCheck/postgresStatus'], true)) {
+                $fail('missing security contract: '.$key);
+            }
+            if ($contract !== null) {
+                SecurityContract::verifyOpenApi($contract, in_array('service.signature', $middleware, true), $documented[$key], $spec['components']['securitySchemes'] ?? []);
+            } elseif (in_array('service.signature', $middleware, true)
                 && ! in_array(['serviceSignature' => []], $documented[$key]['security'] ?? [], true)) {
                 $fail('missing Signature security: '.$key);
             }
