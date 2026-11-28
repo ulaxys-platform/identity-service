@@ -5,8 +5,11 @@
 // permission (subject/action/module with tr/en/ar descriptions) or an explicit
 // exemption reason, so the integration generators and the future RBAC engine
 // consume a complete, reviewable catalog.
+use Ulaxys\Identity\Http\Middleware\Identity\RequirePlatformAdministrator;
+use Ulaxys\Identity\Http\Middleware\Identity\VerifyActorToken;
+
 return [
-    'schemaVersion' => 1,
+    'schemaVersion' => 2,
     'service' => 'identity',
     'gateway' => [
         'mainGate' => ['prefix' => 'services/identity', 'file' => 'gateway/maingate.routes.json'],
@@ -24,10 +27,10 @@ return [
                 ],
             ],
             'operations' => [
-                'identity/auth/login' => ['operation' => 'login', 'gatewayAction' => 'login', 'exempt' => 'Pre-authentication endpoint; protected by the service signature, login rate limiting and enumeration-resistant responses.', 'expose' => true],
-                'identity/auth/refresh' => ['operation' => 'refreshToken', 'gatewayAction' => 'refresh', 'exempt' => 'Pre-authentication endpoint; presents a single-use rotating refresh token and is rate limited.', 'expose' => true],
-                'identity/auth/setup' => ['operation' => 'setupAccount', 'gatewayAction' => 'setup', 'exempt' => 'Pre-authentication endpoint; consumes a single-use bootstrap setup token issued by the auditable identity:bootstrap-admin command.', 'expose' => true],
-                'identity/auth/logout' => ['operation' => 'logout', 'gatewayAction' => 'logout', 'permission' => 'logout', 'expose' => true],
+                'identity/auth/login' => ['operation' => 'login', 'gatewayAction' => 'login', 'exempt' => 'Pre-authentication endpoint; protected by the service signature, login rate limiting and enumeration-resistant responses.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-login']]],
+                'identity/auth/refresh' => ['operation' => 'refreshToken', 'gatewayAction' => 'refresh', 'exempt' => 'Pre-authentication endpoint; presents a single-use rotating refresh token and is rate limited.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-refresh']]],
+                'identity/auth/setup' => ['operation' => 'setupAccount', 'gatewayAction' => 'setup', 'exempt' => 'Pre-authentication endpoint; consumes a single-use bootstrap setup token issued by the auditable identity:bootstrap-admin command.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-recovery']]],
+                'identity/auth/logout' => ['operation' => 'logout', 'gatewayAction' => 'logout', 'permission' => 'logout', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
             ],
         ],
         [
@@ -41,10 +44,10 @@ return [
                 ],
             ],
             'operations' => [
-                'identity/sessions/index' => ['operation' => 'listSessions', 'gatewayAction' => 'listSessions', 'permission' => 'index', 'expose' => true],
-                'identity/sessions/revoke-current' => ['operation' => 'revokeCurrentSession', 'gatewayAction' => 'revokeCurrentSession', 'permission' => 'revoke', 'expose' => true],
-                'identity/sessions/revoke-all' => ['operation' => 'revokeAllOtherSessions', 'gatewayAction' => 'revokeAllSessions', 'permission' => 'revoke', 'expose' => true],
-                'identity/sessions/revoke' => ['operation' => 'revokeSession', 'gatewayAction' => 'revokeSession', 'permission' => 'revoke', 'expose' => true],
+                'identity/sessions/index' => ['operation' => 'listSessions', 'gatewayAction' => 'listSessions', 'permission' => 'index', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
+                'identity/sessions/revoke-current' => ['operation' => 'revokeCurrentSession', 'gatewayAction' => 'revokeCurrentSession', 'permission' => 'revoke', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
+                'identity/sessions/revoke-all' => ['operation' => 'revokeAllOtherSessions', 'gatewayAction' => 'revokeAllSessions', 'permission' => 'revoke', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
+                'identity/sessions/revoke' => ['operation' => 'revokeSession', 'gatewayAction' => 'revokeSession', 'permission' => 'revoke', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
             ],
         ],
         [
@@ -58,11 +61,11 @@ return [
                 ],
             ],
             'operations' => [
-                'identity/credentials/change-password' => ['operation' => 'changePassword', 'gatewayAction' => 'changePassword', 'permission' => 'change', 'expose' => true],
-                'identity/credentials/forgot-password' => ['operation' => 'forgotPassword', 'gatewayAction' => 'forgotPassword', 'exempt' => 'Pre-authentication endpoint; responds identically regardless of account existence and is rate limited.', 'expose' => true],
-                'identity/credentials/reset-password' => ['operation' => 'resetPassword', 'gatewayAction' => 'resetPassword', 'exempt' => 'Pre-authentication endpoint; consumes a single-use hashed recovery token and is rate limited.', 'expose' => true],
-                'identity/credentials/email-verification/start' => ['operation' => 'startEmailVerification', 'gatewayAction' => 'startEmailVerification', 'permission' => 'verify', 'expose' => true],
-                'identity/credentials/email-verification/confirm' => ['operation' => 'confirmEmailVerification', 'gatewayAction' => 'confirmEmailVerification', 'exempt' => 'Pre-authentication endpoint; consumes a single-use hashed verification token and is rate limited.', 'expose' => true],
+                'identity/credentials/change-password' => ['operation' => 'changePassword', 'gatewayAction' => 'changePassword', 'permission' => 'change', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
+                'identity/credentials/forgot-password' => ['operation' => 'forgotPassword', 'gatewayAction' => 'forgotPassword', 'exempt' => 'Pre-authentication endpoint; responds identically regardless of account existence and is rate limited.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-recovery']]],
+                'identity/credentials/reset-password' => ['operation' => 'resetPassword', 'gatewayAction' => 'resetPassword', 'exempt' => 'Pre-authentication endpoint; consumes a single-use hashed recovery token and is rate limited.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-recovery']]],
+                'identity/credentials/email-verification/start' => ['operation' => 'startEmailVerification', 'gatewayAction' => 'startEmailVerification', 'permission' => 'verify', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
+                'identity/credentials/email-verification/confirm' => ['operation' => 'confirmEmailVerification', 'gatewayAction' => 'confirmEmailVerification', 'exempt' => 'Pre-authentication endpoint; consumes a single-use hashed verification token and is rate limited.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-recovery']]],
             ],
         ],
         [
@@ -76,8 +79,8 @@ return [
                 ],
             ],
             'operations' => [
-                'identity/profile/show' => ['operation' => 'showProfile', 'gatewayAction' => 'showProfile', 'permission' => 'show', 'expose' => true],
-                'identity/profile/update' => ['operation' => 'updateProfile', 'gatewayAction' => 'updateProfile', 'permission' => 'update', 'expose' => true],
+                'identity/profile/show' => ['operation' => 'showProfile', 'gatewayAction' => 'showProfile', 'permission' => 'show', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
+                'identity/profile/update' => ['operation' => 'updateProfile', 'gatewayAction' => 'updateProfile', 'permission' => 'update', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
             ],
         ],
         [
@@ -92,25 +95,25 @@ return [
                 ],
             ],
             'operations' => [
-                'identity/admin-users/index' => ['operation' => 'listUsers', 'gatewayAction' => 'listUsers', 'permission' => 'index', 'expose' => true],
-                'identity/admin-users/create' => ['operation' => 'createUser', 'gatewayAction' => 'createUser', 'permission' => 'create', 'expose' => true],
-                'identity/admin-users/show' => ['operation' => 'showUser', 'gatewayAction' => 'showUser', 'permission' => 'read', 'expose' => true],
+                'identity/admin-users/index' => ['operation' => 'listUsers', 'gatewayAction' => 'listUsers', 'permission' => 'index', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class], ['kind' => 'authorization', 'middleware' => RequirePlatformAdministrator::class]]],
+                'identity/admin-users/create' => ['operation' => 'createUser', 'gatewayAction' => 'createUser', 'permission' => 'create', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class], ['kind' => 'authorization', 'middleware' => RequirePlatformAdministrator::class]]],
+                'identity/admin-users/show' => ['operation' => 'showUser', 'gatewayAction' => 'showUser', 'permission' => 'read', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class], ['kind' => 'authorization', 'middleware' => RequirePlatformAdministrator::class]]],
             ],
         ],
         [
             'id' => 'identity-actor',
             'permissions' => null,
             'operations' => [
-                'identity/actor/context' => ['operation' => 'actorContext', 'gatewayAction' => 'actorContext', 'exempt' => 'Gateway integration contract endpoint; any verified actor may read its own context, no permission decision is involved.', 'expose' => true],
+                'identity/actor/context' => ['operation' => 'actorContext', 'gatewayAction' => 'actorContext', 'exempt' => 'Gateway integration contract endpoint; any verified actor may read its own context, no permission decision is involved.', 'expose' => true, 'securityMiddleware' => [['kind' => 'actor', 'middleware' => VerifyActorToken::class]]],
             ],
         ],
         [
             'id' => 'identity-oauth-contract',
             'permissions' => null,
             'operations' => [
-                'identity/oauth/jwks' => ['operation' => 'jwks', 'gatewayAction' => 'jwks', 'exempt' => 'Gateway token-validation contract endpoint; publishes public signing keys only, gated by the service signature.', 'expose' => true],
-                'identity/oauth/introspect' => ['operation' => 'introspectToken', 'gatewayAction' => 'introspect', 'exempt' => 'Gateway token-validation contract endpoint (RFC 7662 semantics); machine-to-machine, gated by the service signature and rate limiting.', 'expose' => true],
-                'identity/oauth/revoke' => ['operation' => 'revokeToken', 'gatewayAction' => 'revokeToken', 'exempt' => 'Gateway token-revocation contract endpoint (RFC 7009 semantics); machine-to-machine, gated by the service signature.', 'expose' => true],
+                'identity/oauth/jwks' => ['operation' => 'jwks', 'gatewayAction' => 'jwks', 'exempt' => 'Gateway token-validation contract endpoint; publishes public signing keys only, gated by the service signature.', 'expose' => true, 'securityMiddleware' => []],
+                'identity/oauth/introspect' => ['operation' => 'introspectToken', 'gatewayAction' => 'introspect', 'exempt' => 'Gateway token-validation contract endpoint (RFC 7662 semantics); machine-to-machine, gated by the service signature and rate limiting.', 'expose' => true, 'securityMiddleware' => [['kind' => 'rateLimit', 'middleware' => 'throttle:identity-introspect']]],
+                'identity/oauth/revoke' => ['operation' => 'revokeToken', 'gatewayAction' => 'revokeToken', 'exempt' => 'Gateway token-revocation contract endpoint (RFC 7009 semantics); machine-to-machine, gated by the service signature.', 'expose' => true, 'securityMiddleware' => []],
             ],
         ],
     ],

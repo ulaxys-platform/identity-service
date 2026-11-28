@@ -7,6 +7,7 @@ namespace Ulaxys\Identity\Http\Middleware\Identity;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Ulaxys\Identity\Integration\SecurityMiddleware;
 use Ulaxys\Identity\Models\User;
 use Ulaxys\Identity\Repositories\RepositoryInterface\PlatformAdministratorRepositoryInterface;
 use Ulaxys\Identity\Transformers\ErrorResponseObjects\HttpErrorResponseObjectOfResult;
@@ -16,6 +17,7 @@ use Ulaxys\Identity\Transformers\ErrorResponseObjects\HttpErrorResponseObjectOfR
  * active platform administrator grant created only by the auditable
  * identity:bootstrap-admin command. Replaced by the I3 RBAC engine.
  */
+#[SecurityMiddleware('authorization')]
 final class RequirePlatformAdministrator
 {
     public function __construct(private readonly PlatformAdministratorRepositoryInterface $administrators) {}

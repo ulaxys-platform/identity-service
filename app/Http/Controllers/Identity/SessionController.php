@@ -18,7 +18,7 @@ final class SessionController extends Controller
         path: '/api/v1/sessions',
         operationId: 'identity/sessions/index',
         tags: ['IdentitySessions'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         responses: [
             new OA\Response(response: 200, description: 'Own active sessions', content: new OA\JsonContent(ref: '#/components/schemas/IdentitySessionListResponse')),
             new OA\Response(response: 401, description: 'Missing or invalid actor token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
@@ -36,7 +36,7 @@ final class SessionController extends Controller
         path: '/api/v1/sessions/current',
         operationId: 'identity/sessions/revoke-current',
         tags: ['IdentitySessions'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         responses: [
             new OA\Response(response: 200, description: 'Current session revoked', content: new OA\JsonContent(ref: '#/components/schemas/HttpSuccessResponseObject')),
             new OA\Response(response: 401, description: 'Missing or invalid actor token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
@@ -54,7 +54,7 @@ final class SessionController extends Controller
         path: '/api/v1/sessions/all',
         operationId: 'identity/sessions/revoke-all',
         tags: ['IdentitySessions'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         responses: [
             new OA\Response(response: 200, description: 'All other sessions revoked', content: new OA\JsonContent(ref: '#/components/schemas/HttpSuccessResponseObject')),
             new OA\Response(response: 401, description: 'Missing or invalid actor token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
@@ -72,7 +72,7 @@ final class SessionController extends Controller
         path: '/api/v1/sessions/{sessionId}',
         operationId: 'identity/sessions/revoke',
         tags: ['IdentitySessions'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'sessionId', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Session revoked', content: new OA\JsonContent(ref: '#/components/schemas/HttpSuccessResponseObject')),

@@ -94,7 +94,7 @@ final class AuthenticationController extends Controller
         path: '/api/v1/auth/logout',
         operationId: 'identity/auth/logout',
         tags: ['IdentityAuthentication'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         responses: [
             new OA\Response(response: 200, description: 'Session revoked', content: new OA\JsonContent(ref: '#/components/schemas/HttpSuccessResponseObject')),
             new OA\Response(response: 401, description: 'Missing or invalid actor token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),

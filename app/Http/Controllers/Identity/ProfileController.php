@@ -25,7 +25,7 @@ final class ProfileController extends Controller
         path: '/api/v1/profile/me',
         operationId: 'identity/profile/show',
         tags: ['IdentityProfile'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         responses: [
             new OA\Response(response: 200, description: 'Own profile', content: new OA\JsonContent(ref: '#/components/schemas/IdentityUserProfileResponse')),
             new OA\Response(response: 401, description: 'Missing or invalid actor token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),
@@ -44,7 +44,7 @@ final class ProfileController extends Controller
         path: '/api/v1/profile/me',
         operationId: 'identity/profile/update',
         tags: ['IdentityProfile'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: '#/components/schemas/IdentityUpdateProfileInput')),
         responses: [
             new OA\Response(response: 200, description: 'Updated profile', content: new OA\JsonContent(ref: '#/components/schemas/IdentityUserProfileResponse')),

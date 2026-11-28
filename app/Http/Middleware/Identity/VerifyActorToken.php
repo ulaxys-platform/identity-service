@@ -7,6 +7,7 @@ namespace Ulaxys\Identity\Http\Middleware\Identity;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Ulaxys\Identity\Integration\SecurityMiddleware;
 use Ulaxys\Identity\Repositories\RepositoryInterface\AuthSessionRepositoryInterface;
 use Ulaxys\Identity\Repositories\RepositoryInterface\UserRepositoryInterface;
 use Ulaxys\Identity\Services\Identity\Tokens\JwtCodec;
@@ -20,6 +21,7 @@ use Ulaxys\Identity\Transformers\ErrorResponseObjects\HttpErrorResponseObjectOfR
  * 401; signing-key unavailability is 503 (never silently accepted).
  * Caller-supplied headers claiming actor identity are never trusted.
  */
+#[SecurityMiddleware('actor')]
 final class VerifyActorToken
 {
     public function __construct(

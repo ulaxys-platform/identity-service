@@ -21,7 +21,7 @@ final class CredentialController extends Controller
         path: '/api/v1/credentials/password',
         operationId: 'identity/credentials/change-password',
         tags: ['IdentityCredentials'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: '#/components/schemas/IdentityChangePasswordInput')),
         responses: [
             new OA\Response(response: 200, description: 'Password changed; other sessions revoked', content: new OA\JsonContent(ref: '#/components/schemas/HttpSuccessResponseObject')),
@@ -88,7 +88,7 @@ final class CredentialController extends Controller
         path: '/api/v1/credentials/email-verification/start',
         operationId: 'identity/credentials/email-verification/start',
         tags: ['IdentityCredentials'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         responses: [
             new OA\Response(response: 200, description: 'Verification challenge delivered through the token transport abstraction', content: new OA\JsonContent(ref: '#/components/schemas/HttpSuccessResponseObject')),
             new OA\Response(response: 401, description: 'Missing or invalid actor token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),

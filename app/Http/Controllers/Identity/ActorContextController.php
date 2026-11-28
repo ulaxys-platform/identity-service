@@ -18,7 +18,7 @@ final class ActorContextController extends Controller
         path: '/api/v1/actor/context',
         operationId: 'identity/actor/context',
         tags: ['IdentityActorContext'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         responses: [
             new OA\Response(response: 200, description: 'Versioned actor context of the verified token', content: new OA\JsonContent(ref: '#/components/schemas/IdentityActorContextResponse')),
             new OA\Response(response: 401, description: 'Missing or invalid actor token', content: new OA\JsonContent(ref: '#/components/schemas/HttpErrorResponseObjectOfResult')),

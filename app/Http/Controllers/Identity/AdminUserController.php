@@ -19,7 +19,7 @@ final class AdminUserController extends Controller
         path: '/api/v1/admin/users',
         operationId: 'identity/admin-users/index',
         tags: ['IdentityAdminUsers'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'limit', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100)),
             new OA\Parameter(name: 'offset', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 0)),
@@ -47,7 +47,7 @@ final class AdminUserController extends Controller
         path: '/api/v1/admin/users',
         operationId: 'identity/admin-users/create',
         tags: ['IdentityAdminUsers'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: '#/components/schemas/IdentityCreateUserInput')),
         responses: [
             new OA\Response(response: 201, description: 'Invited user created without credentials', content: new OA\JsonContent(ref: '#/components/schemas/IdentityUserCreatedResponse')),
@@ -68,7 +68,7 @@ final class AdminUserController extends Controller
         path: '/api/v1/admin/users/{userId}',
         operationId: 'identity/admin-users/show',
         tags: ['IdentityAdminUsers'],
-        security: [['serviceSignature' => []], ['bearerAuth' => []]],
+        security: [['serviceSignature' => [], 'bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'User detail', content: new OA\JsonContent(ref: '#/components/schemas/IdentityUserProfileResponse')),
