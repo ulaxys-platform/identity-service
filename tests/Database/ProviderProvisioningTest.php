@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Ulaxys\Identity\Models\User;
+use Ulaxys\Identity\Services\Identity\Provider\ManageProviderIdentity;
 use Ulaxys\Identity\Tests\Support\DestructiveDatabaseGuard;
 use Ulaxys\Identity\Tests\TestCase;
 
@@ -114,6 +115,16 @@ final class ProviderProvisioningTest extends TestCase
             return Http::response(null, $disableAvailable ? 204 : 503);
         });
         $parameters = ['user' => $user->id];
+        $other = DB::build(config('database.connections.pgsql'));
+        $other->selectOne('SELECT pg_advisory_lock(hashtextextended(?, 0))', ['identity:provider-lifecycle:'.$user->id], false);
+        try {
+            $this->artisan('identity:provider-account', $parameters + ['operation' => 'invite'])
+                ->expectsOutput('Another provider lifecycle operation is in progress.')->assertFailed();
+            $this->assertDatabaseHas('identity_provider_mappings', ['user_id' => $user->id, 'state' => 'staged_disabled']);
+        } finally {
+            $other->disconnect();
+        }
+
         $this->artisan('identity:provider-account', $parameters + ['operation' => 'invite'])->assertSuccessful();
         $this->artisan('identity:provider-account', $parameters + ['operation' => 'bootstrap'])->assertFailed();
         $this->assertDatabaseCount('identity_platform_administrators', 0);
@@ -132,5 +143,12 @@ final class ProviderProvisioningTest extends TestCase
         $disableAvailable = true;
         $this->artisan('identity:provider-reconcile')->assertSuccessful();
         $this->assertDatabaseHas('identity_provider_mappings', ['user_id' => $user->id, 'state' => 'disabled']);
+        $this->artisan('identity:provider-account', $parameters + ['operation' => 'activate'])->assertFailed();
+        $this->artisan('identity:provider-account', $parameters + ['operation' => 'reactivate'])->assertSuccessful();
+        $this->assertTrue($user->fresh()->isLoginEligible());
+        $requests = Http::recorded()->count();
+        app(ManageProviderIdentity::class)->reconcile($user->id, 'disable_pending');
+        $this->assertSame($requests, Http::recorded()->count());
+        $this->assertTrue($user->fresh()->isLoginEligible());
     }
 }

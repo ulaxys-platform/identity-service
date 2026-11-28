@@ -17,9 +17,15 @@ final class ManageProviderIdentity
         private readonly KeycloakAdministration $provider,
         private readonly PlatformAdministratorRepositoryInterface $administrators,
         private readonly AuditLogger $audit,
+        private readonly ProviderLifecycleLock $lock,
     ) {}
 
     public function invite(string $id, ?string $actorId = null): void
+    {
+        $this->lock->run($id, fn () => $this->inviteLocked($id, $actorId));
+    }
+
+    private function inviteLocked(string $id, ?string $actorId = null): void
     {
         $mapping = $this->mapping($id);
         if (! is_string($mapping->contact_email)) {
@@ -35,14 +41,26 @@ final class ManageProviderIdentity
                 $this->audit->audit('identity.provider.activation.requested', $actorId, $actorId === null ? 'operator' : 'user', 'user', $id, 'success');
             }
         });
+        if ($mapping->invitation_accepted_at !== null) {
+            return;
+        }
         $this->provider->inviteAccount($mapping->subject, $id, $mapping->contact_email);
-        $this->audit->audit('identity.provider.activation.delivered', $actorId, $actorId === null ? 'operator' : 'user', 'user', $id, 'success');
+        DB::transaction(function () use ($id, $actorId): void {
+            $this->mappings($id)->where('state', 'activation_pending')
+                ->update(['invitation_accepted_at' => now(), 'updated_at' => now()]);
+            $this->audit->audit('identity.provider.activation.accepted', $actorId, $actorId === null ? 'operator' : 'user', 'user', $id, 'success');
+        });
     }
 
     public function activate(string $id, bool $bootstrap, ?string $actorId = null): void
     {
+        $this->lock->run($id, fn () => $this->activateLocked($id, $bootstrap, $actorId));
+    }
+
+    private function activateLocked(string $id, bool $bootstrap, ?string $actorId = null, bool $reactivation = false): void
+    {
         $mapping = $this->mapping($id);
-        if (! in_array($mapping->state, ['staged_disabled', 'activation_pending', 'disabled', 'suspended', 'active'], true)) {
+        if (! in_array($mapping->state, $reactivation ? ['reactivation_pending'] : ['staged_disabled', 'activation_pending', 'active'], true)) {
             throw new ProviderFailure('Account is not ready for activation.');
         }
         $this->provider->verifyActivatedAccount($mapping->subject, $id, $mapping->contact_email);
@@ -77,6 +95,11 @@ final class ManageProviderIdentity
 
     public function disable(string $id, bool $suspend = false, ?string $actorId = null): void
     {
+        $this->lock->run($id, fn () => $this->disableLocked($id, $suspend, $actorId));
+    }
+
+    private function disableLocked(string $id, bool $suspend = false, ?string $actorId = null): void
+    {
         $mapping = $this->mapping($id);
         $final = $suspend ? 'suspended' : 'disabled';
         $pendingState = $suspend ? 'suspend_pending' : 'disable_pending';
@@ -85,10 +108,10 @@ final class ManageProviderIdentity
             if ($latest->state === $final) {
                 return false;
             }
-            if (! in_array($latest->state, ['active', $pendingState], true)) {
+            if (! in_array($latest->state, ['active', 'staged_disabled', 'activation_pending', 'reactivation_pending', $pendingState], true)) {
                 throw new ProviderFailure('Account is not eligible for disablement.');
             }
-            if ($latest->state === 'active') {
+            if ($latest->state !== $pendingState) {
                 User::query()->findOrFail($id)->update(['status' => $suspend ? User::STATUS_SUSPENDED : User::STATUS_DISABLED]);
                 $this->mappings($id)->update(['state' => $pendingState, 'updated_at' => now()]);
                 $this->audit->audit('identity.provider.disable.requested', $actorId, $actorId === null ? 'operator' : 'user', 'user', $id, 'success');
@@ -107,6 +130,47 @@ final class ManageProviderIdentity
                 $this->audit->audit('identity.provider.disabled', $actorId, $actorId === null ? 'operator' : 'user', 'user', $id, 'success');
             }
         });
+    }
+
+    public function reactivate(string $id, ?string $actorId = null): void
+    {
+        $this->lock->run($id, fn () => $this->reactivateLocked($id, $actorId));
+    }
+
+    public function reconcile(string $id, string $expectedState): void
+    {
+        $this->lock->run($id, function () use ($id, $expectedState): void {
+            $mapping = $this->mapping($id);
+            if ($mapping->state !== $expectedState) {
+                return;
+            }
+
+            match ($expectedState) {
+                'disable_pending', 'suspend_pending' => $this->disableLocked($id, $expectedState === 'suspend_pending'),
+                'reactivation_pending' => $this->reactivateLocked($id, null),
+                'activation_pending' => $mapping->invitation_accepted_at === null
+                    ? $this->inviteLocked($id)
+                    : $this->activateLocked($id, false),
+                default => throw new ProviderFailure('Unknown pending lifecycle state.'),
+            };
+        });
+    }
+
+    private function reactivateLocked(string $id, ?string $actorId): void
+    {
+        $mapping = $this->mapping($id);
+        if (! in_array($mapping->state, ['disabled', 'suspended', 'reactivation_pending'], true)) {
+            throw new ProviderFailure('Account is not eligible for reactivation.');
+        }
+
+        DB::transaction(function () use ($id, $actorId): void {
+            if ($this->mappings($id)->whereIn('state', ['disabled', 'suspended'])
+                ->update(['state' => 'reactivation_pending', 'updated_at' => now()]) === 1) {
+                $this->audit->audit('identity.provider.reactivation.requested', $actorId, $actorId === null ? 'operator' : 'user', 'user', $id, 'success');
+            }
+        });
+        $this->provider->reactivateAccount($mapping->subject, $id, $mapping->contact_email);
+        $this->activateLocked($id, false, $actorId, reactivation: true);
     }
 
     private function mapping(string $id): object

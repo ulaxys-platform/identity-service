@@ -68,3 +68,16 @@ Provider outage and regression results are recorded with the delivery evidence. 
 The real actor endpoint returned 200 before the provider stop, 503 during the stop, and 200 after the same Keycloak instance restarted. The PostgreSQL suite ran 60 tests, with 35 passing, 25 failing and zero skipped. Failures came from six local authentication-flow cases, seven local credential cases, six security-regression cases that use the old sign-in/bootstrap path, and six local token-lifecycle cases. Those tests remain in the suite pending complete replacement coverage. The new provider actor and provisioning/lifecycle regressions passed.
 
 Foundation passed 174 tests. Tooling passed 14 tests. OpenAPI release validation passed ten operations. Strict schema-v2 review-only dry-run passed. The CA-aware `composer audit --locked` exited 100 with Packagist CONNECT 403. Standard install, smoke and runtime failed at Debian TLS trust during image builds. Standard verify and consolidated full acceptance stopped at Composer TLS trust. The supported CA-aware installer successfully installed the final lockfile.
+
+### Serialized lifecycle operations
+
+The lifecycle endpoints and operator commands serialize invite, activate, bootstrap, suspend, disable and reactivate by platform ULID using a nonblocking PostgreSQL writer session lock. Configure the writer for direct or session-pooled connections. The lock is held across the bounded Keycloak call, with no open database transaction during that call. Competing calls fail with an operation-in-progress response. Reconciliation checks the current pending state again under the lock. A queued disablement from before a completed reactivation becomes a no-op.
+
+| Operation | Local transition | Provider requirement |
+|---|---|---|
+| Invite | `staged_disabled` to `activation_pending` | Correlated account, required actions, then action email request. HTTP 204 records request acceptance. |
+| Activate | `staged_disabled` or `activation_pending` to `active` | Same provider subject, verified email, enabled account and no outstanding required actions. |
+| Suspend or disable | Eligible or pending account to local denial, then `suspend_pending` or `disable_pending` | Disable the provider account, revoke sessions, then mark `suspended` or `disabled`. |
+| Reactivate | `suspended` or `disabled` to `reactivation_pending`, then `active` | Validate correlation, verified email and completed actions before enabling the provider account. Recheck provider state before restoring local eligibility. |
+
+Run `php artisan schedule:work` in development or `php artisan schedule:run` every minute through the deployment scheduler. The reconciliation command is registered in `routes/console.php`. It retries pending reactivation and invite requests and checks activation state after the first acknowledged invite. Pending invite and reactivation rows wait at least one minute before another batch attempt. An acknowledgement does not certify SMTP delivery. End-to-end email action testing, terminal retry accounting, and provider-side handling of an HTTP mutation that completes after its client disconnects remain open.

@@ -114,3 +114,55 @@ NOT production-ready by design (I1 review unit). Deployment path documented (doc
 
 - Branch `feature/enterprise-identity-v2` @ commits `be34a62`, `3d6800e`, `8e8b768` (I0: ADRs, runtime policy config, advisory/defect dispositions) — https://github.com/ulaxys-platform/identity-service/tree/feature/enterprise-identity-v2
 - **I1 implementation package** (write access revoked mid-session; task-brief fallback): `ulaxys-identity-v2-package.zip` — 168 files mirroring the repository layout, with `INSTALL.md` (replacement vs new files, exact apply/PR/verification commands), `REPORT.md` (this document) and `DELIVERY-NOTE` instructions. No vendor, no secrets, no lockfile edits. Apply per INSTALL.md to open the review PR titled `feat: enterprise identity and scoped access management foundation` — **do not merge** before CI + Database suite pass on real infrastructure.
+
+## R23 final-completion increment
+
+Starting PR #1 head `f3b503e18e7a3f4b3fef9c7e3a5be46926ebecda`. The branch remains incomplete. This increment adds PostgreSQL lifecycle serialization, stale reconciliation rejection, explicit reactivation, invitation acknowledgement, a scheduled reconciliation entry point, and local-authentication retirement tests. See [provider operations](docs/identity-providers.md#serialized-lifecycle-operations).
+
+### Historical database disposition
+
+All listed tests are retained. Their fixtures still invoke withdrawn local endpoints or mint local tokens. The provider properties below remain applicable even where the old HTTP contract was retired. A related passing test does not automatically establish complete replacement coverage.
+
+| Original test | Guarantee | Current disposition |
+|---|---|---|
+| `IdentityAuthenticationFlowTest::test_successful_login_issues_tokens_session_and_audit` | Provider sign-in and audit | Historical failure retained. Real HTTP actor baseline; sign-in audit parity open. |
+| `IdentityAuthenticationFlowTest::test_unknown_identifier_wrong_password_and_inactive_accounts_share_identical_denials` | Enumeration-resistant login denials | Historical failure retained. Provider credential-flow regression open. |
+| `IdentityAuthenticationFlowTest::test_login_throttling_blocks_repeated_failures` | Login throttling | Historical failure retained. Provider abuse-control regression open. |
+| `IdentityAuthenticationFlowTest::test_refresh_rotation_and_reuse_detection` | Refresh rotation and replay policy | Historical failure retained. Historical R0 provider checks; complete concurrency coverage open. |
+| `IdentityAuthenticationFlowTest::test_logout_revokes_the_session_immediately` | Immediate session logout | Historical failure retained. Historical real provider logout; current regression migration open. |
+| `IdentityAuthenticationFlowTest::test_missing_garbled_and_invalid_bearer_tokens_are_denied_with_www_authenticate` | Reject malformed or absent bearer | Historical failure retained. ProviderActorBoundaryTest covers invalid signature/claims, malformed HTTP regression remains. |
+| `IdentityCredentialLifecycleTest::test_password_change_requires_current_password_and_revokes_other_sessions` | Password changes revoke other sessions | Historical failure retained. Provider account-action regression open. |
+| `IdentityCredentialLifecycleTest::test_password_policy_rejects_weak_and_identifier_derived_passwords` | Credential quality policy | Historical failure retained. Provider password-policy gate open. |
+| `IdentityCredentialLifecycleTest::test_forgot_password_is_enumeration_safe` | Enumeration-safe recovery | Historical failure retained. Provider recovery regression open. |
+| `IdentityCredentialLifecycleTest::test_reset_password_is_single_use_and_revokes_all_sessions` | Single-use recovery and revocation | Historical failure retained. Provider recovery replay regression open. |
+| `IdentityCredentialLifecycleTest::test_expired_reset_tokens_are_rejected` | Expired recovery rejection | Historical failure retained. Provider expiration regression open. |
+| `IdentityCredentialLifecycleTest::test_bootstrap_is_idempotent_seeds_no_password_and_setup_activates_the_account` | Bootstrap replay and verified activation | Historical failure retained. ProviderProvisioningTest covers bootstrap replay and eligibility; real action links open. |
+| `IdentityCredentialLifecycleTest::test_email_verification_start_and_confirm` | Verify email before eligibility | Historical failure retained. ProviderProvisioningTest covers eligibility and authoritative verification; SMTP E2E open. |
+| `IdentitySecurityRegressionTest::test_unknown_request_fields_are_rejected_before_any_state_change` | Reject unknown request fields | Historical failure retained. Existing form request guard; provider-backed admin fixture open. |
+| `IdentitySecurityRegressionTest::test_session_revocation_is_owner_scoped_idor_safe` | Owner-scoped session revocation | Historical failure retained. Current logout uses only validated session ID; session administration migration open. |
+| `IdentitySecurityRegressionTest::test_user_administration_requires_the_bootstrap_grant` | Require administrator grant | Historical failure retained. Historical real HTTP denial; ProviderActorBoundaryTest verifies actor mapping, full replacement open. |
+| `IdentitySecurityRegressionTest::test_actor_context_contract_shape` | Trusted actor contract | Historical failure retained. ProviderActorBoundaryTest verifies platform ULID and issuer/subject. |
+| `IdentitySecurityRegressionTest::test_audit_and_security_events_never_store_plaintext_secrets` | Redact authentication secrets | Historical failure retained. Staging audit test covers correlation; comprehensive redaction regression open. |
+| `IdentitySecurityRegressionTest::test_identity_routes_enforce_the_service_signature` | Service Signature required | Historical failure retained. RouteBoundaryTest verifies live route middleware. |
+| `IdentityTokenLifecycleTest::test_jwks_publishes_public_keys_with_thumbprint_kids` | Provider JWKS authority | Historical failure retained. RouteBoundaryTest verifies removal of local JWKS exposure; historical real signing-key verification. |
+| `IdentityTokenLifecycleTest::test_introspection_reflects_token_and_session_state` | Authoritative introspection | Historical failure retained. ProviderActorBoundaryTest covers inactive token and outage. |
+| `IdentityTokenLifecycleTest::test_revoke_endpoint_revokes_the_session_and_its_family` | Revocation of session and family | Historical failure retained. Historical real Keycloak logout; refresh family regression open. |
+| `IdentityTokenLifecycleTest::test_wrong_audience_and_expired_tokens_are_rejected` | Audience and expiry denial | Historical failure retained. ProviderActorBoundaryTest checks audience and expiry. |
+| `IdentityTokenLifecycleTest::test_key_rotation_keeps_old_tokens_valid_within_the_overlap_window` | Key rotation overlap | Historical failure retained. Historical real provider rotation; overlap regression remains open. |
+| `IdentityTokenLifecycleTest::test_introspection_denies_wrong_audience_and_ineligible_user` | Audience and eligibility denial | Historical failure retained. ProviderActorBoundaryTest checks wrong audience and suspended user. |
+
+Reference Service repository lookup returned `Repository not found`. No production contract or acceptance evidence was fabricated. SMTP capture and actual action-link consumption remain open. Retry accounting and operational recovery for provider mutations whose HTTP response is lost remain incomplete.
+
+### This increment's verification
+
+| Command | Exit | Observed result |
+|---|---:|---|
+| `sh tools.sh test foundation --verbose` | 0 | 175 passed, 909 assertions |
+| `sh tools.sh test database --verbose` | 1 | 60 tests, 35 passed, 25 historical failures, no skips, 186 assertions |
+| `sh tools.sh test tooling` | 0 | 14 passed |
+| `docker exec identity-cloud-app composer openapi` | 0 | 10 mounted operations verified |
+| `docker exec identity-cloud-app php artisan ulaxys:generate-integration --all --gateway-format=json --strict --dry-run --output=r23-final-review` | 0 | Schema-v2 review-only check |
+| `bash scripts/identity-r0/environment/composer.sh audit --locked` | 100 | Packagist CONNECT 403 |
+| `sh tools.sh acceptance full` | 1 | Composer exited 100 during Packagist metadata TLS verification |
+
+The lifecycle regression used two real PostgreSQL sessions to verify conflict rejection before a provider request, followed by successful activation, disablement recovery, explicit reactivation and a stale reconciliation no-op. The provider responses in that regression were fixtures. Real SMTP and real provider lifecycle concurrency were not executed in this increment. Full acceptance remains pending application regression work and a successful advisory audit.

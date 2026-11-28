@@ -4,28 +4,25 @@ declare(strict_types=1);
 
 namespace Ulaxys\Identity\Tests\Feature\Identity;
 
+use Illuminate\Support\Facades\Artisan;
 use Ulaxys\Identity\Http\Middleware\Identity\RequirePlatformAdministrator;
 use Ulaxys\Identity\Http\Middleware\Identity\VerifyActorToken;
 use Ulaxys\Identity\Tests\TestCase;
 
 final class RouteBoundaryTest extends TestCase
 {
-    private const PRE_AUTH_URIS = [
+    private const RETIRED_URIS = [
         'api/v1/auth/login',
         'api/v1/auth/refresh',
         'api/v1/auth/setup',
         'api/v1/credentials/forgot-password',
         'api/v1/credentials/reset-password',
         'api/v1/credentials/email-verification/confirm',
+        'api/v1/credentials/email-verification/start',
+        'api/v1/credentials/password',
         'api/v1/oauth/jwks',
         'api/v1/oauth/introspect',
         'api/v1/oauth/revoke',
-    ];
-
-    private const ADMIN_URIS = [
-        'api/v1/admin/users',
-        'api/v1/admin/users/create',
-        'api/v1/admin/users/{userId}',
     ];
 
     public function test_all_identity_routes_sit_behind_the_service_signature(): void
@@ -35,12 +32,9 @@ final class RouteBoundaryTest extends TestCase
         }
     }
 
-    public function test_every_route_outside_the_pre_auth_set_requires_a_verified_actor(): void
+    public function test_every_identity_route_requires_a_verified_actor(): void
     {
         foreach ($this->identityRoutes() as $route) {
-            if (in_array($route['uri'], self::PRE_AUTH_URIS, true)) {
-                continue;
-            }
             $this->assertContains(VerifyActorToken::class, $route['middleware'], 'Missing actor token boundary: '.$route['uri']);
         }
     }
@@ -48,10 +42,21 @@ final class RouteBoundaryTest extends TestCase
     public function test_admin_routes_require_the_interim_platform_administrator_gate(): void
     {
         foreach ($this->identityRoutes() as $route) {
-            if (! in_array($route['uri'], self::ADMIN_URIS, true)) {
+            if (! str_starts_with($route['uri'], 'api/v1/admin/users')) {
                 continue;
             }
             $this->assertContains(RequirePlatformAdministrator::class, $route['middleware'], 'Missing administrator gate: '.$route['uri']);
+        }
+    }
+
+    public function test_local_authentication_routes_and_authority_commands_are_unavailable(): void
+    {
+        $routes = array_column($this->identityRoutes(), 'uri');
+        foreach (self::RETIRED_URIS as $path) {
+            $this->assertNotContains($path, $routes);
+        }
+        foreach (['identity:bootstrap-admin', 'identity:keys:generate'] as $command) {
+            $this->assertArrayNotHasKey($command, Artisan::all());
         }
     }
 

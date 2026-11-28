@@ -14,27 +14,32 @@ final class ReconcileProviderAccounts extends Command
 {
     protected $signature = 'identity:provider-reconcile {--limit=25 : Maximum queued requests to process}';
 
-    protected $description = 'Retry queued account creation and disablement';
+    protected $description = 'Retry queued provider lifecycle work';
 
     public function handle(ProvisionProviderIdentity $provisioning, ManageProviderIdentity $accounts): int
     {
         $batch = DB::table('identity_provider_mappings')
             ->where('issuer', config('keycloak.issuer'))
-            ->whereIn('state', ['provisioning', 'retry_required', 'disable_pending', 'suspend_pending'])
+            ->where(function ($query): void {
+                $query->whereIn('state', ['provisioning', 'retry_required', 'disable_pending', 'suspend_pending'])
+                    ->orWhere(function ($delayed): void {
+                        $delayed->whereIn('state', ['activation_pending', 'reactivation_pending'])
+                            ->where('updated_at', '<=', now()->subMinute());
+                    });
+            })
             ->orderBy('updated_at')->orderBy('request_id')
             ->limit(max(1, min(100, (int) $this->option('limit'))))->get();
         $failed = false;
         foreach ($batch as $row) {
             try {
-                if (in_array($row->state, ['disable_pending', 'suspend_pending'], true)) {
-                    $accounts->disable($row->user_id, $row->state === 'suspend_pending');
-                } else {
-                    $provisioning->stage($row->request_id);
-                }
+                match ($row->state) {
+                    'disable_pending', 'suspend_pending', 'reactivation_pending', 'activation_pending' => $accounts->reconcile($row->user_id, $row->state),
+                    default => $provisioning->stage($row->request_id),
+                };
             } catch (ProviderFailure) {
                 $failed = true;
                 DB::table('identity_provider_mappings')->where('request_id', $row->request_id)
-                    ->whereIn('state', ['retry_required', 'disable_pending', 'suspend_pending'])
+                    ->where('state', $row->state)
                     ->update(['updated_at' => now()]);
                 $this->warn('Pending provider request '.$row->request_id);
             }

@@ -12,13 +12,13 @@ use Ulaxys\Identity\Http\Requests\ApiFormRequest;
     required: ['operation'],
     additionalProperties: false,
     properties: [
-        new OA\Property(property: 'operation', type: 'string', enum: ['invite', 'activate', 'suspend', 'disable']),
+        new OA\Property(property: 'operation', type: 'string', enum: ['invite', 'activate', 'reactivate', 'suspend', 'disable']),
     ],
 )]
 final class ManageProviderAccountRequest extends ApiFormRequest
 {
     public function rules(): array
     {
-        return ['operation' => ['required', 'string', 'in:invite,activate,suspend,disable']];
+        return ['operation' => ['required', 'string', 'in:invite,activate,reactivate,suspend,disable']];
     }
 }

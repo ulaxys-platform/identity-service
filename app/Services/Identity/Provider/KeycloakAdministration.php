@@ -80,6 +80,27 @@ final class KeycloakAdministration
         }
     }
 
+    public function reactivateAccount(string $subject, string $userId, ?string $email): void
+    {
+        try {
+            $admin = $this->authenticatedRequest();
+            $endpoint = $this->adminUrl().'/users/'.rawurlencode($subject);
+            $account = $admin->get($endpoint);
+            if (! $account->ok() || $account->json('id') !== $subject
+                || $account->json('username') !== 'identity-'.strtolower($userId)
+                || $account->json('attributes.identity_platform_ulid') !== [$userId]
+                || ($email !== null && $account->json('email') !== $email)
+                || $account->json('emailVerified') !== true || $account->json('requiredActions') !== []) {
+                throw new ProviderFailure('The account does not satisfy reactivation requirements.');
+            }
+            if ($account->json('enabled') !== true && $admin->put($endpoint, ['enabled' => true])->status() !== 204) {
+                throw new ProviderFailure('Keycloak reactivation is awaiting reconciliation.');
+            }
+        } catch (ConnectionException) {
+            throw new ProviderFailure('Keycloak is temporarily unavailable.');
+        }
+    }
+
     public function inviteAccount(string $subject, string $userId, string $email): void
     {
         $actions = ['VERIFY_EMAIL', 'UPDATE_PASSWORD'];

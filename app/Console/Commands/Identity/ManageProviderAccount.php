@@ -10,7 +10,7 @@ use Ulaxys\Identity\Services\Identity\Provider\ProviderFailure;
 
 final class ManageProviderAccount extends Command
 {
-    protected $signature = 'identity:provider-account {operation : invite, activate, suspend, disable or bootstrap} {user : Platform user ULID}';
+    protected $signature = 'identity:provider-account {operation : invite, activate, reactivate, suspend, disable or bootstrap} {user : Platform user ULID}';
 
     protected $description = 'Confirm Keycloak activation or reconcile provider account disablement';
 
@@ -22,6 +22,7 @@ final class ManageProviderAccount extends Command
                 'invite' => $accounts->invite($id),
                 'activate' => $accounts->activate($id, false),
                 'bootstrap' => $accounts->activate($id, true),
+                'reactivate' => $accounts->reactivate($id),
                 'suspend' => $accounts->disable($id, true),
                 'disable' => $accounts->disable($id),
                 default => throw new ProviderFailure('Unknown account operation.'),

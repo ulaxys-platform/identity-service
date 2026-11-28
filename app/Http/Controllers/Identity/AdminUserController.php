@@ -111,6 +111,7 @@ final class AdminUserController extends Controller
             match ($request->validated('operation')) {
                 'invite' => $accounts->invite($id, $actorId),
                 'activate' => $accounts->activate($id, false, $actorId),
+                'reactivate' => $accounts->reactivate($id, $actorId),
                 'suspend' => $accounts->disable($id, true, $actorId),
                 'disable' => $accounts->disable($id, false, $actorId),
             };
